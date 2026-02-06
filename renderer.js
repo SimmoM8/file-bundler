@@ -2,6 +2,14 @@ const targetEl = document.getElementById("target");
 const statsEl = document.getElementById("stats");
 const outputEl = document.getElementById("output");
 const basenameOnlyEl = document.getElementById("basenameOnly");
+const detailsOverlay = document.getElementById("detailsOverlay");
+const detailsListEl = document.getElementById("detailsList");
+const detailsEmptyEl = document.getElementById("detailsEmpty");
+const detailsSearchEl = document.getElementById("detailsSearch");
+const detailsCloseEl = document.getElementById("detailsClose");
+const detailsCopyEl = document.getElementById("detailsCopy");
+const tabIncludedEl = document.getElementById("tabIncluded");
+const tabSkippedEl = document.getElementById("tabSkipped");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -9,6 +17,9 @@ const FADE_MS = 250;
 let mode = null; // "folder" | "files"
 let folderPath = null;
 let filePaths = null;
+let lastBundleMeta = null;
+let lastTotalLabel = "Total";
+let activeTab = "included";
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -17,6 +28,12 @@ let scrollTimer = null;
 outputEl.style.setProperty("--scroll-fade", `${FADE_MS}ms`);
 statsEl.classList.add("stats");
 renderStats(null);
+
+statsEl.addEventListener("click", (event) => {
+    if (!statsEl.dataset.hasDetails) return;
+    if (event.target.closest("button")) return;
+    openDetails();
+});
 
 outputEl.addEventListener("scroll", () => {
     outputEl.classList.add("scrolling", "scrolling-on");
@@ -71,10 +88,12 @@ function renderStats(statsInput) {
     const stats = normalizeStats(statsInput);
 
     if (!stats) {
-        statsEl.innerHTML = '<span class="statsPlaceholder">—</span>';
+        statsEl.dataset.hasDetails = "";
+        statsEl.innerHTML = `<span class="statsPlaceholder">—</span>`;
         return;
     }
 
+    statsEl.dataset.hasDetails = lastBundleMeta ? "1" : "";
     statsEl.innerHTML = `
         <div class="statChip">
             <span class="statLabel">Included</span>
@@ -85,10 +104,72 @@ function renderStats(statsInput) {
             <span class="statValue">${stats.skipped}</span>
         </div>
         <div class="statChip">
-            <span class="statLabel">Total</span>
+            <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
         </div>
     `;
+}
+
+function setActiveTab(tab) {
+    activeTab = tab;
+    tabIncludedEl.classList.toggle("active", tab === "included");
+    tabSkippedEl.classList.toggle("active", tab === "skipped");
+    tabIncludedEl.setAttribute("aria-selected", tab === "included");
+    tabSkippedEl.setAttribute("aria-selected", tab === "skipped");
+    renderDetailsList();
+}
+
+function openDetails() {
+    if (!lastBundleMeta) return;
+    detailsOverlay.classList.remove("hidden");
+    detailsOverlay.setAttribute("aria-hidden", "false");
+    setActiveTab(activeTab || "included");
+    detailsSearchEl.focus();
+    detailsSearchEl.select();
+}
+
+function closeDetails() {
+    detailsOverlay.classList.add("hidden");
+    detailsOverlay.setAttribute("aria-hidden", "true");
+}
+
+function renderDetailsList() {
+    if (!lastBundleMeta) return;
+    const query = detailsSearchEl.value.trim().toLowerCase();
+    const items = activeTab === "included"
+        ? lastBundleMeta.files.included.map((path) => ({ path }))
+        : lastBundleMeta.files.skipped;
+
+    const filtered = query
+        ? items.filter((item) => item.path.toLowerCase().includes(query))
+        : items;
+
+    detailsListEl.innerHTML = "";
+    const frag = document.createDocumentFragment();
+
+    for (const item of filtered) {
+        const row = document.createElement("div");
+        row.className = "detailsRow";
+
+        const pathEl = document.createElement("div");
+        pathEl.className = "detailsPath";
+        pathEl.textContent = item.path;
+
+        row.appendChild(pathEl);
+
+        if (activeTab === "skipped" && item.reason) {
+            const reasonEl = document.createElement("div");
+            reasonEl.className = "detailsReason";
+            reasonEl.textContent = item.reason;
+            row.appendChild(reasonEl);
+        }
+
+        frag.appendChild(row);
+    }
+
+    detailsListEl.appendChild(frag);
+    const hasItems = filtered.length > 0;
+    detailsEmptyEl.style.display = hasItems ? "none" : "grid";
 }
 
 document.getElementById("pickFolder").addEventListener("click", async () => {
@@ -97,7 +178,9 @@ document.getElementById("pickFolder").addEventListener("click", async () => {
     mode = "folder";
     folderPath = picked;
     filePaths = null;
-    targetEl.textContent = `Folder: ${picked}`;
+    targetEl.textContent = `Folder: ${picked} `;
+    lastBundleMeta = null;
+    lastTotalLabel = "Total scanned";
     renderStats(null);
 });
 
@@ -108,6 +191,8 @@ document.getElementById("pickFiles").addEventListener("click", async () => {
     filePaths = picked;
     folderPath = null;
     targetEl.textContent = `Files: ${picked.length} selected`;
+    lastBundleMeta = null;
+    lastTotalLabel = "Total";
     renderStats(null);
 });
 
@@ -117,6 +202,8 @@ document.getElementById("bundle").addEventListener("click", async () => {
     if (mode === "folder" && folderPath) {
         const res = await window.api.bundleFolder(folderPath, options);
         outputEl.value = res.output;
+        lastBundleMeta = res;
+        lastTotalLabel = "Total scanned";
         renderStats(res.stats);
         toast("Bundled");
         return;
@@ -125,6 +212,8 @@ document.getElementById("bundle").addEventListener("click", async () => {
     if (mode === "files" && filePaths?.length) {
         const res = await window.api.bundleFiles(filePaths, options);
         outputEl.value = res.output;
+        lastBundleMeta = res;
+        lastTotalLabel = "Total";
         renderStats(res.stats);
         toast("Bundled");
         return;
@@ -136,4 +225,39 @@ document.getElementById("bundle").addEventListener("click", async () => {
 document.getElementById("copy").addEventListener("click", async () => {
     await window.api.copyToClipboard(outputEl.value);
     toast("Copied to clipboard");
+});
+
+detailsOverlay.addEventListener("click", (event) => {
+    if (event.target === detailsOverlay) closeDetails();
+});
+
+detailsCloseEl.addEventListener("click", closeDetails);
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !detailsOverlay.classList.contains("hidden")) {
+        closeDetails();
+    }
+});
+
+tabIncludedEl.addEventListener("click", () => setActiveTab("included"));
+tabSkippedEl.addEventListener("click", () => setActiveTab("skipped"));
+detailsSearchEl.addEventListener("input", renderDetailsList);
+
+detailsCopyEl.addEventListener("click", async () => {
+    if (!lastBundleMeta) return;
+    const query = detailsSearchEl.value.trim().toLowerCase();
+    const items = activeTab === "included"
+        ? lastBundleMeta.files.included.map((path) => ({ path }))
+        : lastBundleMeta.files.skipped;
+    const filtered = query
+        ? items.filter((item) => item.path.toLowerCase().includes(query))
+        : items;
+
+    const text = filtered
+        .map((item) => (item.reason ? `${item.path} — ${item.reason} ` : item.path))
+        .join("\n");
+    if (text) {
+        await window.api.copyToClipboard(text);
+        toast("Copied list");
+    }
 });

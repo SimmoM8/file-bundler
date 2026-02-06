@@ -43,39 +43,72 @@ async function bundleFilesInternal(absPaths, root, options) {
     const parts = [];
     let included = 0;
     let skipped = 0;
+    const includedFiles = [];
+    const skippedFiles = [];
+
+    const formatLabel = (absPath) => {
+        return options?.useBasenameOnly
+            ? path.basename(absPath)
+            : path.relative(root, absPath).replace(/\\/g, "/");
+    };
 
     for (const absPath of absPaths) {
+        const label = formatLabel(absPath);
         const ext = path.extname(absPath).toLowerCase();
-        if (IGNORE_EXTS.has(ext)) { skipped++; continue; }
+        if (IGNORE_EXTS.has(ext)) {
+            skipped++;
+            skippedFiles.push({ path: label, reason: "ignored extension" });
+            continue;
+        }
 
         let stat;
-        try { stat = await fs.stat(absPath); } catch { skipped++; continue; }
-        if (!stat.isFile()) { skipped++; continue; }
-        if (stat.size > MAX_FILE_BYTES) { skipped++; continue; }
+        try {
+            stat = await fs.stat(absPath);
+        } catch {
+            skipped++;
+            skippedFiles.push({ path: label, reason: "read failed" });
+            continue;
+        }
+        if (!stat.isFile()) {
+            skipped++;
+            skippedFiles.push({ path: label, reason: "not a file" });
+            continue;
+        }
+        if (stat.size > MAX_FILE_BYTES) {
+            skipped++;
+            skippedFiles.push({ path: label, reason: "too large" });
+            continue;
+        }
 
-        if (await sniffBinary(absPath)) { skipped++; continue; }
+        if (await sniffBinary(absPath)) {
+            skipped++;
+            skippedFiles.push({ path: label, reason: "binary" });
+            continue;
+        }
 
         let content;
         try {
             content = await fs.readFile(absPath, "utf8");
         } catch {
             skipped++;
+            skippedFiles.push({ path: label, reason: "read failed" });
             continue;
         }
 
         content = content.replace(/\r\n/g, "\n");
 
-        const label = options?.useBasenameOnly
-            ? path.basename(absPath)
-            : path.relative(root, absPath).replace(/\\/g, "/");
-
         parts.push(`${label}:\n${content}`);
         included++;
+        includedFiles.push(label);
     }
 
     return {
         output: parts.join(SEP),
         stats: { included, skipped, total: absPaths.length },
+        files: {
+            included: includedFiles,
+            skipped: skippedFiles,
+        },
     };
 }
 

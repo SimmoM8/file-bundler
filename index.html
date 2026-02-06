@@ -54,6 +54,34 @@
     </main>
 
     <div id="toast" class="toast" aria-live="polite"></div>
+
+    <div id="detailsOverlay" class="modalOverlay hidden" aria-hidden="true">
+      <div class="modalCard glass" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+        <div class="modalHeader">
+          <div class="modalTitle" id="detailsTitle">Bundle Details</div>
+          <div class="modalActions">
+            <button class="btn subtle" id="detailsCopy">Copy list</button>
+            <button class="btn subtle" id="detailsClose" aria-label="Close">Close</button>
+          </div>
+        </div>
+
+        <div class="modalControls">
+          <div class="segmented" role="tablist" aria-label="Bundle lists">
+            <button class="segmentedBtn active" id="tabIncluded" role="tab" aria-selected="true">Included</button>
+            <button class="segmentedBtn" id="tabSkipped" role="tab" aria-selected="false">Skipped</button>
+          </div>
+
+          <div class="searchWrap">
+            <input id="detailsSearch" class="searchInput" type="text" placeholder="Filter files" />
+          </div>
+        </div>
+
+        <div class="modalBody">
+          <div id="detailsList" class="detailsList" role="list"></div>
+          <div id="detailsEmpty" class="detailsEmpty">No files to show.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
