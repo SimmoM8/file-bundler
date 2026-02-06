@@ -7,6 +7,16 @@ let mode = null; // "folder" | "files"
 let folderPath = null;
 let filePaths = null;
 
+const toastEl = document.getElementById("toast");
+let toastTimer = null;
+
+function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
+}
+
 document.getElementById("pickFolder").addEventListener("click", async () => {
     const picked = await window.api.pickFolder();
     if (!picked) return;
@@ -34,6 +44,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
         const res = await window.api.bundleFolder(folderPath, options);
         outputEl.value = res.output;
         statsEl.textContent = `Included: ${res.stats.included} | Skipped: ${res.stats.skipped} | Total scanned: ${res.stats.total}`;
+        toast("Bundled");
         return;
     }
 
@@ -41,6 +52,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
         const res = await window.api.bundleFiles(filePaths, options);
         outputEl.value = res.output;
         statsEl.textContent = `Included: ${res.stats.included} | Skipped: ${res.stats.skipped} | Total: ${res.stats.total}`;
+        toast("Bundled");
         return;
     }
 
@@ -49,5 +61,5 @@ document.getElementById("bundle").addEventListener("click", async () => {
 
 document.getElementById("copy").addEventListener("click", async () => {
     await window.api.copyToClipboard(outputEl.value);
-    statsEl.textContent = (statsEl.textContent ? statsEl.textContent + " | " : "") + "Copied!";
+    toast("Copied to clipboard");
 });
