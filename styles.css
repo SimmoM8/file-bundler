@@ -570,6 +570,7 @@ body {
 
 .modalCard {
     width: min(820px, 92vw);
+    height: min(680px, 86vh);
     max-height: min(680px, 86vh);
     display: flex;
     flex-direction: column;
@@ -668,12 +669,15 @@ body {
     flex: 1;
     min-height: 0;
     position: relative;
+    display: flex;
+    overflow: hidden;
 }
 
 .detailsList {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: auto;
-    padding: 8px;
+    padding: 8px 12px 8px 8px;
     border-radius: var(--r2);
     border: 1px solid rgba(255, 255, 255, .10);
     background: rgba(10, 12, 20, .55);
@@ -709,6 +713,7 @@ body {
     border: 1px solid rgba(255, 255, 255, .06);
     background: rgba(255, 255, 255, .03);
     margin-bottom: 6px;
+    min-width: 0;
 }
 
 .detailsRow:last-child {
@@ -719,7 +724,11 @@ body {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     font-size: 12px;
     color: rgba(255, 255, 255, .90);
-    word-break: break-all;
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .detailsReason {
