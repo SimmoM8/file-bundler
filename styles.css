@@ -265,7 +265,7 @@ body {
     border: 1px solid rgba(255, 255, 255, .10);
     background: var(--editor-bg);
     color: rgba(255, 255, 255, .92);
-    padding: 12px;
+    padding: 12px 14px 12px 12px;
     line-height: 1.45;
     font-size: 12.5px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -273,6 +273,9 @@ body {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .25), 0 18px 40px rgba(0, 0, 0, .38);
     transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
     caret-color: rgba(190, 210, 255, .9);
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .22) transparent;
 }
 
 .editor:focus {
@@ -286,6 +289,35 @@ body {
 
 .editor:placeholder-shown {
     background: var(--editor-bg-empty);
+}
+
+/* Subtle glass scrollbars (Chromium/WebKit) */
+.editor::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.editor::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.editor::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .16);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.editor:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .26);
+}
+
+.editor:active::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .32);
+}
+
+.editor::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 /* Toast */
