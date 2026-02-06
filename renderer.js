@@ -56,7 +56,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
         return;
     }
 
-    alert("Pick a folder or files first.");
+    alert("Pick a folder or files, then click Bundle.");
 });
 
 document.getElementById("copy").addEventListener("click", async () => {
