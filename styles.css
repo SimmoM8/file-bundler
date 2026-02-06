@@ -273,6 +273,7 @@ body {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .25), 0 18px 40px rgba(0, 0, 0, .38);
     transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
     caret-color: rgba(190, 210, 255, .9);
+    --scroll-fade: 250ms;
     scrollbar-gutter: stable both-edges;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, .22) transparent;
@@ -302,18 +303,25 @@ body {
 }
 
 .editor::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, .16);
+    background-color: rgba(255, 255, 255, .22);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: content-box;
+    opacity: .05;
+    transition: opacity var(--scroll-fade) ease;
 }
 
-.editor:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, .26);
+.editor.hovering::-webkit-scrollbar-thumb {
+    opacity: .35;
 }
 
-.editor:active::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, .32);
+.editor.scrolling::-webkit-scrollbar-thumb {
+    opacity: .60;
+}
+
+.editor.scrolling-on::-webkit-scrollbar-thumb {
+    transition: none;
+    opacity: .60;
 }
 
 .editor::-webkit-scrollbar-corner {

@@ -3,12 +3,28 @@ const statsEl = document.getElementById("stats");
 const outputEl = document.getElementById("output");
 const basenameOnlyEl = document.getElementById("basenameOnly");
 
+const SHOW_DELAY_MS = 900;
+const FADE_MS = 250;
+
 let mode = null; // "folder" | "files"
 let folderPath = null;
 let filePaths = null;
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
+let scrollTimer = null;
+
+outputEl.style.setProperty("--scroll-fade", `${FADE_MS}ms`);
+
+outputEl.addEventListener("scroll", () => {
+    outputEl.classList.add("scrolling", "scrolling-on");
+    requestAnimationFrame(() => outputEl.classList.remove("scrolling-on"));
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => outputEl.classList.remove("scrolling"), SHOW_DELAY_MS);
+});
+
+outputEl.addEventListener("pointerenter", () => outputEl.classList.add("hovering"));
+outputEl.addEventListener("pointerleave", () => outputEl.classList.remove("hovering"));
 
 function toast(msg) {
     toastEl.textContent = msg;
