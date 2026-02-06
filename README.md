@@ -29,6 +29,16 @@ Go to the **Releases** page on GitHub and download the installer for your operat
 
 No terminal or Node.js required to use the app once installed.
 
+macOS note:
+The app is unsigned. If macOS blocks it:
+	1.	Try to open the app once (let it fail)
+	2.	Go to:
+System Settings → Privacy & Security
+	3.	Scroll down
+	4.	You’ll see:
+“File Bundler was blocked…”
+	5.	Click Open Anyway
+
 ---
 
 ## Features

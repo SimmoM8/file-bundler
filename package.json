@@ -15,7 +15,7 @@
   "homepage": "https://github.com/SimmoM8/file-bundler#readme",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --dir",
+    "build": "electron-builder --publish always",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win"

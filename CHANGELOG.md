@@ -9,7 +9,7 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 ### Changed
 ### Fixed
 
-## [0.1.0] - 2026-02-07
+## [0.1.1] - 2026-02-07
 ### Added
 - Initial release:
   - Pick Folder / Pick Files
