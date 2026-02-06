@@ -1,6 +1,6 @@
 {
   "name": "file-bundler-desktop",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A desktop application for bundling files and folders into a single copyable file.",
   "author": "Benjamin Simmons",
   "license": "MIT",
@@ -39,11 +39,15 @@
       }
     ],
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "build/icon.icns"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {
