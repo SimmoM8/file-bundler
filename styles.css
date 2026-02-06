@@ -260,6 +260,7 @@ body {
 }
 
 .statChip {
+    position: relative;
     display: inline-flex;
     align-items: baseline;
     gap: 6px;
@@ -271,6 +272,122 @@ body {
     backdrop-filter: blur(14px) saturate(150%);
     -webkit-backdrop-filter: blur(14px) saturate(150%);
     white-space: nowrap;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.statChip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, .22);
+    background: rgba(255, 255, 255, .10);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 14px 30px rgba(0, 0, 0, .28);
+}
+
+.statHover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 260px;
+    max-width: min(520px, 78vw);
+    max-height: 240px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(18, 20, 30, .72);
+    border: 1px solid rgba(255, 255, 255, .18);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    opacity: 0;
+    transform: translateY(-4px) scale(.98);
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 4;
+}
+
+.statChip:hover .statHover,
+.statChip.hover-open .statHover {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.statHoverTitle {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.statHoverList {
+    display: grid;
+    gap: 6px;
+    max-height: 170px;
+    overflow: auto;
+    padding-right: 12px;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .12) transparent;
+}
+
+.statHoverList::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+}
+
+.statHoverList::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.statHoverList::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .12);
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+}
+
+
+.statHoverRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: rgba(255, 255, 255, .05);
+    min-width: 0;
+}
+
+.statHoverPath {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, .90);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.statHoverReason {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .10);
+    padding: 3px 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.statHoverFooter {
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--muted);
 }
 
 .statLabel {

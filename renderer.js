@@ -84,6 +84,40 @@ function normalizeStats(input) {
     return null;
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function buildHoverList(title, items, options = {}) {
+    if (!items || items.length === 0) return "";
+    const maxItems = options.maxItems ?? 12;
+    const shown = items.slice(0, maxItems);
+    const remaining = Math.max(items.length - shown.length, 0);
+
+    const rows = shown.map((item) => {
+        const path = item?.path ?? item;
+        const base = String(path).split("/").pop();
+        return `<div class="statHoverRow"><span class="statHoverPath">${escapeHtml(base || path)}</span></div>`;
+    }).join("");
+
+    const footer = remaining > 0
+        ? `<div class="statHoverFooter">+${remaining} more</div>`
+        : "";
+
+    return `
+        <div class="statHover" role="tooltip" aria-label="${escapeHtml(title)} files">
+            <div class="statHoverTitle">${escapeHtml(title)}</div>
+            <div class="statHoverList">${rows}</div>
+            ${footer}
+        </div>
+    `;
+}
+
 function renderStats(statsInput) {
     const stats = normalizeStats(statsInput);
 
@@ -93,21 +127,94 @@ function renderStats(statsInput) {
         return;
     }
 
+    const includedHover = lastBundleMeta?.files?.included?.length
+        ? buildHoverList("Included files", lastBundleMeta.files.included)
+        : "";
+    const skippedHover = lastBundleMeta?.files?.skipped?.length
+        ? buildHoverList("Skipped files", lastBundleMeta.files.skipped)
+        : "";
+
     statsEl.dataset.hasDetails = lastBundleMeta ? "1" : "";
     statsEl.innerHTML = `
-        <div class="statChip">
+        <div class="statChip" data-stat="included">
             <span class="statLabel">Included</span>
             <span class="statValue">${stats.included}</span>
+            ${stats.included > 0 ? includedHover : ""}
         </div>
-        <div class="statChip">
+        <div class="statChip" data-stat="skipped">
             <span class="statLabel">Skipped</span>
             <span class="statValue">${stats.skipped}</span>
+            ${stats.skipped > 0 ? skippedHover : ""}
         </div>
         <div class="statChip">
             <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
         </div>
     `;
+
+    attachHoverPositioning();
+}
+
+function attachHoverPositioning() {
+    const chips = statsEl.querySelectorAll(".statChip");
+    chips.forEach((chip) => {
+        const hover = chip.querySelector(".statHover");
+        if (!hover) return;
+
+        const position = () => positionHoverPanel(chip, hover);
+        let closeTimer = null;
+
+        const open = () => {
+            clearTimeout(closeTimer);
+            chip.classList.add("hover-open");
+            position();
+        };
+
+        const close = () => {
+            chip.classList.remove("hover-open");
+        };
+
+        chip.addEventListener("mouseenter", open);
+        chip.addEventListener("mouseleave", () => {
+            closeTimer = setTimeout(close, 120);
+        });
+
+        hover.addEventListener("mouseenter", open);
+        hover.addEventListener("mouseleave", () => {
+            closeTimer = setTimeout(close, 120);
+        });
+
+        window.addEventListener("resize", position);
+        window.addEventListener("scroll", position, true);
+    });
+}
+
+function positionHoverPanel(chipEl, hoverEl) {
+    hoverEl.style.left = "0px";
+    hoverEl.style.right = "auto";
+    hoverEl.style.top = "calc(100% + 8px)";
+    hoverEl.style.bottom = "auto";
+
+    requestAnimationFrame(() => {
+        const padding = 8;
+        const chipRect = chipEl.getBoundingClientRect();
+        const hoverRect = hoverEl.getBoundingClientRect();
+
+        let shiftX = 0;
+        const overflowRight = hoverRect.right - (window.innerWidth - padding);
+        if (overflowRight > 0) shiftX -= overflowRight;
+        const overflowLeft = hoverRect.left - padding;
+        if (overflowLeft < 0) shiftX -= overflowLeft;
+        if (shiftX !== 0) {
+            hoverEl.style.left = `${shiftX}px`;
+        }
+
+        const overflowBottom = hoverRect.bottom - (window.innerHeight - padding);
+        if (overflowBottom > 0 && chipRect.top - hoverRect.height - padding > 0) {
+            hoverEl.style.top = "auto";
+            hoverEl.style.bottom = `calc(100% + 8px)`;
+        }
+    });
 }
 
 function setActiveTab(tab) {
