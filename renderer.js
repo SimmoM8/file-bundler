@@ -15,6 +15,8 @@ let toastTimer = null;
 let scrollTimer = null;
 
 outputEl.style.setProperty("--scroll-fade", `${FADE_MS}ms`);
+statsEl.classList.add("stats");
+renderStats(null);
 
 outputEl.addEventListener("scroll", () => {
     outputEl.classList.add("scrolling", "scrolling-on");
@@ -33,6 +35,62 @@ function toast(msg) {
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
 }
 
+function normalizeStats(input) {
+    if (!input) return null;
+
+    if (typeof input === "object") {
+        const { included, skipped, total } = input;
+        if ([included, skipped, total].some((value) => value === undefined || value === null)) {
+            return null;
+        }
+        const parsed = {
+            included: Number(included),
+            skipped: Number(skipped),
+            total: Number(total)
+        };
+        if ([parsed.included, parsed.skipped, parsed.total].some((value) => Number.isNaN(value))) {
+            return null;
+        }
+        return parsed;
+    }
+
+    if (typeof input === "string") {
+        const match = input.match(/Included:\s*(\d+)\s*\|\s*Skipped:\s*(\d+)\s*\|\s*Total(?:\s*scanned)?:\s*(\d+)/i);
+        if (!match) return null;
+        return {
+            included: Number(match[1]),
+            skipped: Number(match[2]),
+            total: Number(match[3])
+        };
+    }
+
+    return null;
+}
+
+function renderStats(statsInput) {
+    const stats = normalizeStats(statsInput);
+
+    if (!stats) {
+        statsEl.innerHTML = '<span class="statsPlaceholder">—</span>';
+        return;
+    }
+
+    statsEl.innerHTML = `
+        <div class="statChip">
+            <span class="statLabel">Included</span>
+            <span class="statValue">${stats.included}</span>
+        </div>
+        <div class="statChip">
+            <span class="statLabel">Skipped</span>
+            <span class="statValue">${stats.skipped}</span>
+        </div>
+        <div class="statChip">
+            <span class="statLabel">Total</span>
+            <span class="statValue">${stats.total}</span>
+        </div>
+    `;
+}
+
 document.getElementById("pickFolder").addEventListener("click", async () => {
     const picked = await window.api.pickFolder();
     if (!picked) return;
@@ -40,7 +98,7 @@ document.getElementById("pickFolder").addEventListener("click", async () => {
     folderPath = picked;
     filePaths = null;
     targetEl.textContent = `Folder: ${picked}`;
-    statsEl.textContent = "";
+    renderStats(null);
 });
 
 document.getElementById("pickFiles").addEventListener("click", async () => {
@@ -50,7 +108,7 @@ document.getElementById("pickFiles").addEventListener("click", async () => {
     filePaths = picked;
     folderPath = null;
     targetEl.textContent = `Files: ${picked.length} selected`;
-    statsEl.textContent = "";
+    renderStats(null);
 });
 
 document.getElementById("bundle").addEventListener("click", async () => {
@@ -59,7 +117,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
     if (mode === "folder" && folderPath) {
         const res = await window.api.bundleFolder(folderPath, options);
         outputEl.value = res.output;
-        statsEl.textContent = `Included: ${res.stats.included} | Skipped: ${res.stats.skipped} | Total scanned: ${res.stats.total}`;
+        renderStats(res.stats);
         toast("Bundled");
         return;
     }
@@ -67,7 +125,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
     if (mode === "files" && filePaths?.length) {
         const res = await window.api.bundleFiles(filePaths, options);
         outputEl.value = res.output;
-        statsEl.textContent = `Included: ${res.stats.included} | Skipped: ${res.stats.skipped} | Total: ${res.stats.total}`;
+        renderStats(res.stats);
         toast("Bundled");
         return;
     }

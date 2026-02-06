@@ -251,6 +251,86 @@ body {
     opacity: .9;
 }
 
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-height: 24px;
+}
+
+.statChip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 10px 24px rgba(0, 0, 0, .22);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    white-space: nowrap;
+}
+
+.statLabel {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .10em;
+}
+
+.statValue {
+    font-size: 12.5px;
+    font-weight: 650;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    min-width: 1.6em;
+    text-align: right;
+}
+
+.statsPlaceholder {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .02em;
+}
+
+.statsText {
+    font-size: 12.5px;
+    color: var(--text);
+    opacity: .9;
+}
+
+.statsActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.statsBtn {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .04);
+    color: var(--muted);
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.statsBtn:hover {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .20);
+    color: var(--text);
+}
+
+.statsBtn:disabled {
+    opacity: .5;
+    cursor: default;
+}
+
 .panel-body {
     flex: 1;
     min-height: 0;
@@ -350,4 +430,199 @@ body {
 .toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(-2px);
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 10, 16, .45);
+    backdrop-filter: blur(10px) saturate(160%);
+    -webkit-backdrop-filter: blur(10px) saturate(160%);
+    z-index: 10;
+    opacity: 1;
+    transition: opacity .2s ease;
+}
+
+.modalOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modalCard {
+    width: min(820px, 92vw);
+    max-height: min(680px, 86vh);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: calc(var(--r) + 2px);
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: rgba(16, 18, 28, .55);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.modalTitle {
+    font-size: 13.5px;
+    font-weight: 650;
+}
+
+.modalActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn.subtle {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .04);
+}
+
+.modalControls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.segmented {
+    display: inline-flex;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 4px;
+}
+
+.segmentedBtn {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.segmentedBtn.active {
+    background: rgba(120, 160, 255, .20);
+    border-color: rgba(140, 180, 255, .30);
+    color: var(--text);
+}
+
+.searchWrap {
+    flex: 1;
+    min-width: 220px;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .04);
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.searchInput:focus {
+    border-color: rgba(140, 180, 255, .45);
+    box-shadow: 0 0 0 2px rgba(140, 180, 255, .18), inset 0 1px 0 rgba(255, 255, 255, .10);
+}
+
+.modalBody {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+.detailsList {
+    height: 100%;
+    overflow: auto;
+    padding: 8px;
+    border-radius: var(--r2);
+    border: 1px solid rgba(255, 255, 255, .10);
+    background: rgba(10, 12, 20, .55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .22) transparent;
+}
+
+.detailsList::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.detailsList::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.detailsList::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .22);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.detailsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(255, 255, 255, .03);
+    margin-bottom: 6px;
+}
+
+.detailsRow:last-child {
+    margin-bottom: 0;
+}
+
+.detailsPath {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .90);
+    word-break: break-all;
+}
+
+.detailsReason {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .10);
+    padding: 4px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.detailsEmpty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    pointer-events: none;
 }
