@@ -472,6 +472,13 @@ body {
     border: 1px solid rgba(255, 255, 255, .10);
     background: var(--editor-bg);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .25);
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.selectionView.dropActive {
+    border-color: rgba(140, 180, 255, .45);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 2px rgba(140, 180, 255, .22);
+    background: linear-gradient(180deg, rgba(20, 28, 44, .86), rgba(12, 16, 26, .92));
 }
 
 .selectionSummary {

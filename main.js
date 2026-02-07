@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, clipboard } = require("electron");
+const fs = require("fs/promises");
 const path = require("path");
 const { bundleFromFolder, bundleFromFiles } = require("./bundler");
 
@@ -55,4 +56,13 @@ ipcMain.handle("bundleFiles", async (_evt, filePaths, options) => {
 ipcMain.handle("copyToClipboard", async (_evt, text) => {
     clipboard.writeText(text ?? "");
     return true;
+});
+
+ipcMain.handle("statPath", async (_evt, absPath) => {
+    try {
+        const stat = await fs.stat(absPath);
+        return { isFile: stat.isFile(), isDirectory: stat.isDirectory() };
+    } catch {
+        return { isFile: false, isDirectory: false };
+    }
 });

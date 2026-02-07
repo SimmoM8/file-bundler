@@ -13,6 +13,7 @@ const tabSkippedEl = document.getElementById("tabSkipped");
 const selectionSummaryEl = document.getElementById("selectionSummary");
 const selectionListEl = document.getElementById("selectionList");
 const selectionEmptyEl = document.getElementById("selectionEmpty");
+const selectionViewEl = document.getElementById("selectionView");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -397,6 +398,53 @@ selectionListEl.addEventListener("click", (event) => {
     const button = event.target.closest(".selectionRemove");
     if (!button) return;
     removeEntry(button.dataset.path, button.dataset.kind);
+});
+
+function setDropActive(active) {
+    selectionViewEl.classList.toggle("dropActive", active);
+}
+
+function isFileDrop(event) {
+    return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+}
+
+selectionViewEl.addEventListener("dragenter", (event) => {
+    if (!isFileDrop(event)) return;
+    event.preventDefault();
+    setDropActive(true);
+});
+
+selectionViewEl.addEventListener("dragover", (event) => {
+    if (!isFileDrop(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+});
+
+selectionViewEl.addEventListener("dragleave", (event) => {
+    if (!selectionViewEl.contains(event.relatedTarget)) {
+        setDropActive(false);
+    }
+});
+
+selectionViewEl.addEventListener("drop", async (event) => {
+    if (!isFileDrop(event)) return;
+    event.preventDefault();
+    setDropActive(false);
+
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length === 0) return;
+
+    const entries = await Promise.all(
+        files.map(async (file) => {
+            const absPath = file.path;
+            const stat = await window.api.statPath(absPath);
+            if (stat?.isDirectory) return { kind: "folder", absPath };
+            if (stat?.isFile) return { kind: "file", absPath };
+            return null;
+        })
+    );
+
+    addEntries(entries.filter(Boolean));
 });
 
 document.getElementById("bundle").addEventListener("click", async () => {

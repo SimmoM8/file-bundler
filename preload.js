@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("api", {
     bundleFolder: (folderPath, options) => ipcRenderer.invoke("bundleFolder", folderPath, options),
     bundleFiles: (filePaths, options) => ipcRenderer.invoke("bundleFiles", filePaths, options),
     copyToClipboard: (text) => ipcRenderer.invoke("copyToClipboard", text),
+    statPath: (absPath) => ipcRenderer.invoke("statPath", absPath),
 });
