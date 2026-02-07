@@ -17,6 +17,7 @@ const FADE_MS = 250;
 let mode = null; // "folder" | "files"
 let folderPath = null;
 let filePaths = null;
+let selectionEntries = [];
 let lastBundleMeta = null;
 let lastTotalLabel = "Total";
 let activeTab = "included";
@@ -82,6 +83,34 @@ function normalizeStats(input) {
     }
 
     return null;
+}
+
+function addEntries(newEntries) {
+    const next = new Map(selectionEntries.map((entry) => [`${entry.kind}:${entry.absPath}`, entry]));
+    for (const entry of newEntries) {
+        next.set(`${entry.kind}:${entry.absPath}`, entry);
+    }
+    selectionEntries = Array.from(next.values());
+    lastBundleMeta = null;
+    targetEl.textContent = summarizeSelection();
+}
+
+function removeEntry(absPath, kind) {
+    selectionEntries = selectionEntries.filter((entry) => !(entry.absPath === absPath && entry.kind === kind));
+    lastBundleMeta = null;
+    targetEl.textContent = summarizeSelection();
+}
+
+function summarizeSelection() {
+    const counts = selectionEntries.reduce(
+        (acc, entry) => {
+            if (entry.kind === "folder") acc.folders += 1;
+            if (entry.kind === "file") acc.files += 1;
+            return acc;
+        },
+        { folders: 0, files: 0 }
+    );
+    return `Selected: ${counts.folders} folder${counts.folders === 1 ? "" : "s"}, ${counts.files} file${counts.files === 1 ? "" : "s"}`;
 }
 
 function escapeHtml(value) {
@@ -285,8 +314,7 @@ document.getElementById("pickFolder").addEventListener("click", async () => {
     mode = "folder";
     folderPath = picked;
     filePaths = null;
-    targetEl.textContent = `Folder: ${picked} `;
-    lastBundleMeta = null;
+    addEntries([{ kind: "folder", absPath: picked }]);
     lastTotalLabel = "Total scanned";
     renderStats(null);
 });
@@ -297,8 +325,7 @@ document.getElementById("pickFiles").addEventListener("click", async () => {
     mode = "files";
     filePaths = picked;
     folderPath = null;
-    targetEl.textContent = `Files: ${picked.length} selected`;
-    lastBundleMeta = null;
+    addEntries(picked.map((filePath) => ({ kind: "file", absPath: filePath })));
     lastTotalLabel = "Total";
     renderStats(null);
 });
