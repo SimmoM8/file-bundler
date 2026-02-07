@@ -21,6 +21,10 @@
     box-sizing: border-box;
 }
 
+.hidden {
+    display: none !important;
+}
+
 html,
 body {
     height: 100%;
@@ -452,6 +456,142 @@ body {
     flex: 1;
     min-height: 0;
     padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.selectionView {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    position: relative;
+    border-radius: var(--r2);
+    border: 1px solid rgba(255, 255, 255, .10);
+    background: var(--editor-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .25);
+}
+
+.selectionSummary {
+    font-size: 11.5px;
+    color: var(--muted);
+    letter-spacing: .02em;
+}
+
+.selectionList {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px 10px 6px 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    background: rgba(12, 14, 22, .55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .18) transparent;
+}
+
+.selectionList::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.selectionList::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.selectionList::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .18);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.selectionRow {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(255, 255, 255, .04);
+    margin-bottom: 6px;
+    min-width: 0;
+}
+
+.selectionRow:last-child {
+    margin-bottom: 0;
+}
+
+.selectionIcon {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .78);
+    background: rgba(255, 255, 255, .08);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.selectionText {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.selectionPrimary {
+    font-size: 12.5px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selectionSecondary {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selectionRemove {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, .10);
+    background: rgba(255, 255, 255, .04);
+    color: var(--muted);
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    line-height: 1;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.selectionRemove:hover {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .20);
+    color: var(--text);
+}
+
+.selectionEmpty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    pointer-events: none;
 }
 
 .editor {

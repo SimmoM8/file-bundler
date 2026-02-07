@@ -10,6 +10,9 @@ const detailsCloseEl = document.getElementById("detailsClose");
 const detailsCopyEl = document.getElementById("detailsCopy");
 const tabIncludedEl = document.getElementById("tabIncluded");
 const tabSkippedEl = document.getElementById("tabSkipped");
+const selectionSummaryEl = document.getElementById("selectionSummary");
+const selectionListEl = document.getElementById("selectionList");
+const selectionEmptyEl = document.getElementById("selectionEmpty");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -29,6 +32,8 @@ let scrollTimer = null;
 outputEl.style.setProperty("--scroll-fade", `${FADE_MS}ms`);
 statsEl.classList.add("stats");
 renderStats(null);
+targetEl.textContent = summarizeSelection();
+renderSelection();
 
 statsEl.addEventListener("click", (event) => {
     if (!statsEl.dataset.hasDetails) return;
@@ -85,6 +90,17 @@ function normalizeStats(input) {
     return null;
 }
 
+function getSelectionCounts() {
+    return selectionEntries.reduce(
+        (acc, entry) => {
+            if (entry.kind === "folder") acc.folders += 1;
+            if (entry.kind === "file") acc.files += 1;
+            return acc;
+        },
+        { folders: 0, files: 0 }
+    );
+}
+
 function addEntries(newEntries) {
     const next = new Map(selectionEntries.map((entry) => [`${entry.kind}:${entry.absPath}`, entry]));
     for (const entry of newEntries) {
@@ -93,24 +109,71 @@ function addEntries(newEntries) {
     selectionEntries = Array.from(next.values());
     lastBundleMeta = null;
     targetEl.textContent = summarizeSelection();
+    renderStats(null);
+    renderSelection();
 }
 
 function removeEntry(absPath, kind) {
     selectionEntries = selectionEntries.filter((entry) => !(entry.absPath === absPath && entry.kind === kind));
     lastBundleMeta = null;
     targetEl.textContent = summarizeSelection();
+    renderStats(null);
+    renderSelection();
 }
 
 function summarizeSelection() {
-    const counts = selectionEntries.reduce(
-        (acc, entry) => {
-            if (entry.kind === "folder") acc.folders += 1;
-            if (entry.kind === "file") acc.files += 1;
-            return acc;
-        },
-        { folders: 0, files: 0 }
-    );
+    const counts = getSelectionCounts();
     return `Selected: ${counts.folders} folder${counts.folders === 1 ? "" : "s"}, ${counts.files} file${counts.files === 1 ? "" : "s"}`;
+}
+
+function renderSelection() {
+    const counts = getSelectionCounts();
+    const total = counts.folders + counts.files;
+    selectionSummaryEl.textContent = `Items: ${total} (folders ${counts.folders}, files ${counts.files})`;
+
+    selectionListEl.innerHTML = "";
+    const frag = document.createDocumentFragment();
+
+    for (const entry of selectionEntries) {
+        const row = document.createElement("div");
+        row.className = "selectionRow";
+
+        const icon = document.createElement("div");
+        icon.className = "selectionIcon";
+        icon.textContent = entry.kind === "folder" ? "📁" : "📄";
+
+        const text = document.createElement("div");
+        text.className = "selectionText";
+
+        const base = entry.absPath.split("/").pop() || entry.absPath;
+        const primary = document.createElement("div");
+        primary.className = "selectionPrimary";
+        primary.textContent = base;
+
+        const secondary = document.createElement("div");
+        secondary.className = "selectionSecondary";
+        secondary.textContent = entry.absPath;
+
+        text.appendChild(primary);
+        text.appendChild(secondary);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "selectionRemove";
+        removeBtn.type = "button";
+        removeBtn.textContent = "×";
+        removeBtn.dataset.path = entry.absPath;
+        removeBtn.dataset.kind = entry.kind;
+        removeBtn.setAttribute("aria-label", "Remove");
+
+        row.appendChild(icon);
+        row.appendChild(text);
+        row.appendChild(removeBtn);
+
+        frag.appendChild(row);
+    }
+
+    selectionListEl.appendChild(frag);
+    selectionEmptyEl.style.display = total === 0 ? "grid" : "none";
 }
 
 function escapeHtml(value) {
@@ -328,6 +391,12 @@ document.getElementById("pickFiles").addEventListener("click", async () => {
     addEntries(picked.map((filePath) => ({ kind: "file", absPath: filePath })));
     lastTotalLabel = "Total";
     renderStats(null);
+});
+
+selectionListEl.addEventListener("click", (event) => {
+    const button = event.target.closest(".selectionRemove");
+    if (!button) return;
+    removeEntry(button.dataset.path, button.dataset.kind);
 });
 
 document.getElementById("bundle").addEventListener("click", async () => {
