@@ -74,6 +74,9 @@ async function bundleFromSelection(selectionEntries, options) {
                 excludedPathSet,
                 collectSkipped: true,
             });
+            if (files.length === 0) {
+                preSkipped.push({ absPath: entry.absPath, reason: "empty folder" });
+            }
             for (const file of files) fileSet.add(file);
             preSkipped.push(...skipped);
         } else if (entry.kind === "file") {
@@ -284,6 +287,7 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
             }
         }
 
+        if (node.children.length === 0 && !node.excluded) return null;
         return node;
     };
 

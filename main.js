@@ -1,7 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, clipboard } = require("electron");
 const fs = require("fs/promises");
 const path = require("path");
-const { bundleFromFolder, bundleFromFiles, bundleFromSelection, getSelectionHierarchy } = require("./bundler");
+const { bundleFromSelection, getSelectionHierarchy } = require("./bundler");
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -29,28 +29,12 @@ app.on("window-all-closed", () => {
 
 // --- IPC handlers ---
 
-ipcMain.handle("pickFolder", async () => {
+ipcMain.handle("pickEntries", async () => {
     const res = await dialog.showOpenDialog({
-        properties: ["openDirectory"],
-    });
-    if (res.canceled || res.filePaths.length === 0) return null;
-    return res.filePaths[0];
-});
-
-ipcMain.handle("pickFiles", async () => {
-    const res = await dialog.showOpenDialog({
-        properties: ["openFile", "multiSelections"],
+        properties: ["openFile", "openDirectory", "multiSelections"],
     });
     if (res.canceled || res.filePaths.length === 0) return null;
     return res.filePaths;
-});
-
-ipcMain.handle("bundleFolder", async (_evt, folderPath, options) => {
-    return await bundleFromFolder(folderPath, options);
-});
-
-ipcMain.handle("bundleFiles", async (_evt, filePaths, options) => {
-    return await bundleFromFiles(filePaths, options);
 });
 
 ipcMain.handle("bundleSelection", async (_evt, selectionEntries, options) => {

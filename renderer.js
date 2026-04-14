@@ -20,9 +20,6 @@ const viewOutputBtn = document.getElementById("viewOutput");
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
 
-let mode = null; // "folder" | "files"
-let folderPath = null;
-let filePaths = null;
 let selectionEntries = [];
 let lastBundleMeta = null;
 let lastTotalLabel = "Total";
@@ -156,6 +153,15 @@ async function refreshSelectionHierarchy() {
         if (token !== hierarchyToken) return;
 
         selectionHierarchy = Array.isArray(res?.nodes) ? res.nodes : [];
+        const visibleRootPaths = new Set(selectionHierarchy.map((node) => node.absPath));
+        const beforeCount = selectionEntries.length;
+        selectionEntries = selectionEntries.filter((entry) => {
+            if (entry.kind !== "folder") return true;
+            return visibleRootPaths.has(entry.absPath);
+        });
+        if (selectionEntries.length !== beforeCount) {
+            targetEl.textContent = buildTargetLabel();
+        }
         const selectedFolderRoots = new Set(
             selectionEntries
                 .filter((entry) => entry.kind === "folder")
@@ -258,10 +264,11 @@ function buildTargetLabel() {
         const parts = getPathParts(absPath);
         return parts.length >= 2 ? parts[parts.length - 2] : "root";
     };
+    const pluralize = (count, singular, plural) => `${count} ${count === 1 ? singular : plural}`;
 
     if (selectionEntries.length === 1) {
         const only = selectionEntries[0];
-        return `Selected ${getName(only.absPath)} from ${getParentName(only.absPath)}`;
+        return `Selected "${getName(only.absPath)}" from "${getParentName(only.absPath)}"`;
     }
 
     const counts = getSelectionCounts();
@@ -279,7 +286,11 @@ function buildTargetLabel() {
     }
 
     const parentName = common.length > 0 ? common[common.length - 1] : getParentName(selectionEntries[0].absPath);
-    return `Selected ${counts.folders} folder(s) and ${counts.files} file(s) from ${parentName}`;
+    const parts = [];
+    if (counts.folders > 0) parts.push(pluralize(counts.folders, "folder", "folders"));
+    if (counts.files > 0) parts.push(pluralize(counts.files, "file", "files"));
+    const selectionSummary = parts.join(" and ");
+    return `Selected ${selectionSummary} from "${parentName}"`;
 }
 
 async function rebundleSelectionLive() {
@@ -706,26 +717,25 @@ function renderDetailsList() {
     detailsEmptyEl.style.display = hasItems ? "none" : "grid";
 }
 
-document.getElementById("pickFolder").addEventListener("click", async () => {
-    const picked = await window.api.pickFolder();
-    if (!picked) return;
-    resetSelectionState();
-    mode = "folder";
-    folderPath = picked;
-    filePaths = null;
-    lastTotalLabel = "Total scanned";
-    await addEntries([{ kind: "folder", absPath: picked }]);
-});
+document.getElementById("pickEntries").addEventListener("click", async () => {
+    const picked = await window.api.pickEntries();
+    if (!picked || picked.length === 0) return;
 
-document.getElementById("pickFiles").addEventListener("click", async () => {
-    const picked = await window.api.pickFiles();
-    if (!picked) return;
+    const entries = await Promise.all(
+        picked.map(async (absPath) => {
+            const stat = await window.api.statPath(absPath);
+            if (stat?.isDirectory) return { kind: "folder", absPath };
+            if (stat?.isFile) return { kind: "file", absPath };
+            return null;
+        })
+    );
+
+    const validEntries = entries.filter(Boolean);
+    if (validEntries.length === 0) return;
+
     resetSelectionState();
-    mode = "files";
-    filePaths = picked;
-    folderPath = null;
     lastTotalLabel = "Total";
-    await addEntries(picked.map((filePath) => ({ kind: "file", absPath: filePath })));
+    await addEntries(validEntries);
 });
 
 basenameOnlyEl.addEventListener("change", async () => {
