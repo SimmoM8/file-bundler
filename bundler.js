@@ -2,7 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const ignore = require("ignore");
 
-const SEP = "\n\n--\n\n";
+const SEPARATOR = "\n\n--\n\n";
 
 const IGNORE_DIRS = new Set([
     ".git",
@@ -13,6 +13,7 @@ const IGNORE_DIRS = new Set([
     ".next",
     ".cache",
     "coverage",
+    ".env",
 ]);
 
 const IGNORE_EXTS = new Set([
@@ -21,7 +22,8 @@ const IGNORE_EXTS = new Set([
     ".zip", ".rar", ".7z", ".tar", ".gz",
     ".mp3", ".wav", ".mp4", ".mov",
     ".woff", ".woff2", ".ttf", ".otf",
-    ".exe", ".dll", ".dmg", ".app",
+    ".exe", ".dll", ".dmg", ".app", ".env",
+    ".ico", ".bin",
 ]);
 
 const MAX_FILE_BYTES = 500_000;
@@ -139,7 +141,7 @@ async function bundleFilesInternal(absPaths, root, options, preSkipped = []) {
     }
 
     return {
-        output: parts.join(SEP),
+        output: parts.join(SEPARATOR),
         stats: { included, skipped: skippedFiles.length, total: included + skippedFiles.length },
         files: {
             included: includedFiles,
@@ -213,6 +215,8 @@ async function getSelectionHierarchy(selectionEntries, options = {}) {
     const sortedEntries = [...(selectionEntries ?? [])].sort((a, b) => a.absPath.localeCompare(b.absPath));
     for (const entry of sortedEntries) {
         if (entry.kind === "file") {
+            const skipReason = await getFileSkipReason(entry.absPath);
+            if (skipReason) continue;
             nodes.push({
                 kind: "file",
                 name: path.basename(entry.absPath),
@@ -348,8 +352,9 @@ function buildExcludedPathSet(excludedPaths) {
 }
 
 async function getFileSkipReason(absPath) {
+    const base = path.basename(absPath).toLowerCase();
     const ext = path.extname(absPath).toLowerCase();
-    if (IGNORE_EXTS.has(ext)) return "ignored extension";
+    if (IGNORE_EXTS.has(ext) || IGNORE_EXTS.has(base)) return "ignored extension";
 
     let stat;
     try {

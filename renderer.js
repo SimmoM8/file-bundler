@@ -13,6 +13,7 @@ const tabSkippedEl = document.getElementById("tabSkipped");
 const selectionSummaryEl = document.getElementById("selectionSummary");
 const selectionListEl = document.getElementById("selectionList");
 const selectionEmptyEl = document.getElementById("selectionEmpty");
+const addContentBtn = document.getElementById("addContent");
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
@@ -119,6 +120,21 @@ function isSameOrDescendantPath(candidate, base) {
     return left === right || left.startsWith(`${right}/`);
 }
 
+function isAlreadySelected(entry, currentSelection) {
+    for (const selected of currentSelection) {
+        if (selected.kind === entry.kind && normalizePath(selected.absPath) === normalizePath(entry.absPath)) {
+            return true;
+        }
+
+        // If a folder is already selected, any file/folder under it is already selected.
+        if (selected.kind === "folder" && isSameOrDescendantPath(entry.absPath, selected.absPath)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function pruneExcludedPaths() {
     if (selectionEntries.length === 0) {
         excludedAbsPaths.clear();
@@ -155,10 +171,7 @@ async function refreshSelectionHierarchy() {
         selectionHierarchy = Array.isArray(res?.nodes) ? res.nodes : [];
         const visibleRootPaths = new Set(selectionHierarchy.map((node) => node.absPath));
         const beforeCount = selectionEntries.length;
-        selectionEntries = selectionEntries.filter((entry) => {
-            if (entry.kind !== "folder") return true;
-            return visibleRootPaths.has(entry.absPath);
-        });
+        selectionEntries = selectionEntries.filter((entry) => visibleRootPaths.has(entry.absPath));
         if (selectionEntries.length !== beforeCount) {
             targetEl.textContent = buildTargetLabel();
         }
@@ -293,6 +306,13 @@ function buildTargetLabel() {
     return `Selected ${selectionSummary} from "${parentName}"`;
 }
 
+function getParentPath(absPath) {
+    const normalized = String(absPath).replace(/\\/g, "/");
+    const idx = normalized.lastIndexOf("/");
+    if (idx <= 0) return normalized;
+    return normalized.slice(0, idx);
+}
+
 async function rebundleSelectionLive() {
     const token = ++rebundleToken;
 
@@ -333,6 +353,7 @@ function renderSelection() {
 
     for (const node of selectionHierarchy) countNodes(node);
     const total = counts.folders + counts.files;
+    addContentBtn.classList.toggle("hidden", selectionEntries.length === 0);
 
     selectionSummaryEl.textContent = `Bundled tree: ${total} items (folders ${counts.folders}, files ${counts.files})`;
 
@@ -371,6 +392,17 @@ function renderSelection() {
         name.className = "selectionTreeName";
         name.textContent = node.name;
 
+        const textWrap = document.createElement("div");
+        textWrap.className = "selectionTreeText";
+        textWrap.appendChild(name);
+
+        if (depth === 0) {
+            const meta = document.createElement("div");
+            meta.className = "selectionTreeMeta";
+            meta.textContent = `from \"${getParentPath(node.absPath)}\"`;
+            textWrap.appendChild(meta);
+        }
+
         const removeBtn = document.createElement("button");
         removeBtn.className = "selectionRemove";
         removeBtn.type = "button";
@@ -379,7 +411,7 @@ function renderSelection() {
         removeBtn.dataset.action = "remove";
 
         if (directExcluded) {
-            removeBtn.textContent = "Add";
+            removeBtn.textContent = "Re-add";
             removeBtn.dataset.action = "add";
             removeBtn.classList.add("isAdd");
             removeBtn.setAttribute("aria-label", `Add ${node.name} back to bundle`);
@@ -395,7 +427,7 @@ function renderSelection() {
 
         row.appendChild(toggle);
         row.appendChild(icon);
-        row.appendChild(name);
+        row.appendChild(textWrap);
         row.appendChild(removeBtn);
         group.appendChild(row);
 
@@ -717,7 +749,7 @@ function renderDetailsList() {
     detailsEmptyEl.style.display = hasItems ? "none" : "grid";
 }
 
-document.getElementById("pickEntries").addEventListener("click", async () => {
+async function pickContent({ replace }) {
     const picked = await window.api.pickEntries();
     if (!picked || picked.length === 0) return;
 
@@ -733,9 +765,29 @@ document.getElementById("pickEntries").addEventListener("click", async () => {
     const validEntries = entries.filter(Boolean);
     if (validEntries.length === 0) return;
 
-    resetSelectionState();
+    let nextEntries = validEntries;
+    if (!replace) {
+        const before = validEntries.length;
+        nextEntries = validEntries.filter((entry) => !isAlreadySelected(entry, selectionEntries));
+        const skippedCount = before - nextEntries.length;
+        if (skippedCount > 0) {
+            toast(`Skipped ${skippedCount} already selected item${skippedCount === 1 ? "" : "s"}`);
+        }
+    }
+
+    if (nextEntries.length === 0) return;
+
+    if (replace) resetSelectionState();
     lastTotalLabel = "Total";
-    await addEntries(validEntries);
+    await addEntries(nextEntries);
+}
+
+document.getElementById("pickEntries").addEventListener("click", async () => {
+    await pickContent({ replace: true });
+});
+
+document.getElementById("addContent").addEventListener("click", async () => {
+    await pickContent({ replace: false });
 });
 
 basenameOnlyEl.addEventListener("change", async () => {
