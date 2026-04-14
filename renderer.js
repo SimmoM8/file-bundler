@@ -14,6 +14,8 @@ const selectionSummaryEl = document.getElementById("selectionSummary");
 const selectionListEl = document.getElementById("selectionList");
 const selectionEmptyEl = document.getElementById("selectionEmpty");
 const selectionViewEl = document.getElementById("selectionView");
+const viewSelectionBtn = document.getElementById("viewSelection");
+const viewOutputBtn = document.getElementById("viewOutput");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -35,6 +37,7 @@ statsEl.classList.add("stats");
 renderStats(null);
 targetEl.textContent = summarizeSelection();
 renderSelection();
+setView("selection");
 
 statsEl.addEventListener("click", (event) => {
     if (!statsEl.dataset.hasDetails) return;
@@ -175,6 +178,16 @@ function renderSelection() {
 
     selectionListEl.appendChild(frag);
     selectionEmptyEl.style.display = total === 0 ? "grid" : "none";
+}
+
+function setView(view) {
+    const isOutput = view === "output";
+    outputEl.classList.toggle("hidden", !isOutput);
+    selectionViewEl.classList.toggle("hidden", isOutput);
+    viewSelectionBtn.classList.toggle("active", !isOutput);
+    viewOutputBtn.classList.toggle("active", isOutput);
+    viewSelectionBtn.setAttribute("aria-selected", String(!isOutput));
+    viewOutputBtn.setAttribute("aria-selected", String(isOutput));
 }
 
 function escapeHtml(value) {
@@ -400,6 +413,9 @@ selectionListEl.addEventListener("click", (event) => {
     removeEntry(button.dataset.path, button.dataset.kind);
 });
 
+viewSelectionBtn.addEventListener("click", () => setView("selection"));
+viewOutputBtn.addEventListener("click", () => setView("output"));
+
 function setDropActive(active) {
     selectionViewEl.classList.toggle("dropActive", active);
 }
@@ -450,12 +466,24 @@ selectionViewEl.addEventListener("drop", async (event) => {
 document.getElementById("bundle").addEventListener("click", async () => {
     const options = { useBasenameOnly: basenameOnlyEl.checked };
 
+    if (selectionEntries.length > 0) {
+        const res = await window.api.bundleSelection(selectionEntries, options);
+        outputEl.value = res.output;
+        lastBundleMeta = res;
+        lastTotalLabel = "Total";
+        renderStats(res.stats);
+        setView("output");
+        toast("Bundled");
+        return;
+    }
+
     if (mode === "folder" && folderPath) {
         const res = await window.api.bundleFolder(folderPath, options);
         outputEl.value = res.output;
         lastBundleMeta = res;
         lastTotalLabel = "Total scanned";
         renderStats(res.stats);
+        setView("output");
         toast("Bundled");
         return;
     }
@@ -466,6 +494,7 @@ document.getElementById("bundle").addEventListener("click", async () => {
         lastBundleMeta = res;
         lastTotalLabel = "Total";
         renderStats(res.stats);
+        setView("output");
         toast("Bundled");
         return;
     }

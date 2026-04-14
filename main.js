@@ -1,7 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, clipboard } = require("electron");
 const fs = require("fs/promises");
 const path = require("path");
-const { bundleFromFolder, bundleFromFiles } = require("./bundler");
+const { bundleFromFolder, bundleFromFiles, bundleFromSelection } = require("./bundler");
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -51,6 +51,10 @@ ipcMain.handle("bundleFolder", async (_evt, folderPath, options) => {
 
 ipcMain.handle("bundleFiles", async (_evt, filePaths, options) => {
     return await bundleFromFiles(filePaths, options);
+});
+
+ipcMain.handle("bundleSelection", async (_evt, selectionEntries, options) => {
+    return await bundleFromSelection(selectionEntries, options);
 });
 
 ipcMain.handle("copyToClipboard", async (_evt, text) => {

@@ -39,6 +39,24 @@ async function bundleFromFiles(filePaths, options) {
     return await bundleFilesInternal(sorted, root, options);
 }
 
+async function bundleFromSelection(selectionEntries, options) {
+    const fileSet = new Set();
+
+    for (const entry of selectionEntries ?? []) {
+        if (entry.kind === "folder") {
+            const files = await listFilesRecursive(entry.absPath);
+            for (const file of files) fileSet.add(file);
+        } else if (entry.kind === "file") {
+            fileSet.add(entry.absPath);
+        }
+    }
+
+    const files = Array.from(fileSet);
+    const root = commonParent(files);
+    const sorted = files.sort((a, b) => a.localeCompare(b));
+    return await bundleFilesInternal(sorted, root, options);
+}
+
 async function bundleFilesInternal(absPaths, root, options) {
     const parts = [];
     let included = 0;
@@ -169,4 +187,4 @@ function commonParent(pathsArr) {
     return split[0].slice(0, i).join(path.sep) || process.cwd();
 }
 
-module.exports = { bundleFromFolder, bundleFromFiles };
+module.exports = { bundleFromFolder, bundleFromFiles, bundleFromSelection };

@@ -460,6 +460,16 @@ body {
     flex-direction: column;
 }
 
+.panel-switch {
+    display: flex;
+    justify-content: flex-end;
+    padding: 2px 4px 8px 4px;
+}
+
+.viewToggle .segmentedBtn {
+    padding: 6px 12px;
+}
+
 .selectionView {
     flex: 1;
     min-height: 0;

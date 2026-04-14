@@ -48,6 +48,12 @@
         </div>
 
         <div class="panel-body">
+          <div class="panel-switch">
+            <div class="segmented viewToggle" role="tablist" aria-label="Selection view">
+              <button class="segmentedBtn active" id="viewSelection" role="tab" aria-selected="true">Selection</button>
+              <button class="segmentedBtn" id="viewOutput" role="tab" aria-selected="false">Output</button>
+            </div>
+          </div>
           <div id="selectionView" class="selectionView">
             <div id="selectionSummary" class="selectionSummary">Items: 0 (folders 0, files 0)</div>
             <div id="selectionList" class="selectionList" role="list"></div>
