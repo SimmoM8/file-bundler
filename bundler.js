@@ -13,7 +13,6 @@ const IGNORE_DIRS = new Set([
     ".next",
     ".cache",
     "coverage",
-    ".env",
 ]);
 
 const IGNORE_EXTS = new Set([
@@ -22,7 +21,7 @@ const IGNORE_EXTS = new Set([
     ".zip", ".rar", ".7z", ".tar", ".gz",
     ".mp3", ".wav", ".mp4", ".mov",
     ".woff", ".woff2", ".ttf", ".otf",
-    ".exe", ".dll", ".dmg", ".app", ".env",
+    ".exe", ".dll", ".dmg", ".app",
     ".ico", ".bin",
 ]);
 
@@ -159,9 +158,9 @@ async function listFilesRecursive(root, options = {}) {
 
     const isIgnoredByGitignore = (absPath, isDir = false) => {
         if (!gitignore) return false;
-        const rel = path.relative(root, absPath).replace(/\\/g, "/");
+        const rel = path.relative(gitignore.baseDir, absPath).replace(/\\/g, "/");
         if (!rel || rel === ".") return false;
-        return gitignore.ignores(isDir ? `${rel}/` : rel);
+        return gitignore.matcher.ignores(isDir ? `${rel}/` : rel);
     };
 
     const addSkipped = (absPath, reason) => {
@@ -240,9 +239,10 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
     const gitignore = await loadGitignoreMatcher(rootPath);
 
     const isIgnoredByGitignore = (absPath, isDir = false) => {
-        const rel = path.relative(rootPath, absPath).replace(/\\/g, "/");
-        if (!rel || rel === ".") return false;
-        return gitignore.ignores(isDir ? `${rel}/` : rel);
+        if (!gitignore) return false;
+        const relToGitignore = path.relative(gitignore.baseDir, absPath).replace(/\\/g, "/");
+        if (!relToGitignore || relToGitignore === ".") return false;
+        return gitignore.matcher.ignores(isDir ? `${relToGitignore}/` : relToGitignore);
     };
 
     const walk = async (dirPath) => {
@@ -299,15 +299,26 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
 }
 
 async function loadGitignoreMatcher(root) {
-    const matcher = ignore();
-    const gitignorePath = path.join(root, ".gitignore");
-    try {
-        const raw = await fs.readFile(gitignorePath, "utf8");
-        matcher.add(raw);
-    } catch {
-        // No .gitignore in selected root is a valid case.
+    let currentDir = path.resolve(root);
+
+    for (let i = 0; i <= 2; i += 1) {
+        const gitignorePath = path.join(currentDir, ".gitignore");
+        try {
+            const raw = await fs.readFile(gitignorePath, "utf8");
+            return {
+                matcher: ignore().add(raw),
+                baseDir: currentDir,
+            };
+        } catch {
+            // Try parent/grandparent before giving up.
+        }
+
+        const parentDir = path.dirname(currentDir);
+        if (parentDir === currentDir) break;
+        currentDir = parentDir;
     }
-    return matcher;
+
+    return null;
 }
 
 async function sniffBinary(filePath) {
