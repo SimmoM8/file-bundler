@@ -260,7 +260,7 @@ body {
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    min-height: 24px;
+    min-height: 36px;
 }
 
 .statChip {
@@ -285,6 +285,19 @@ body {
     border-color: rgba(255, 255, 255, .22);
     background: rgba(255, 255, 255, .10);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 14px 30px rgba(0, 0, 0, .28);
+}
+
+.statChipPlaceholder {
+    opacity: .6;
+    cursor: default;
+    pointer-events: none;
+}
+
+.statChipPlaceholder:hover {
+    transform: none;
+    border-color: rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 10px 24px rgba(0, 0, 0, .22);
 }
 
 .statHover {
@@ -500,8 +513,9 @@ body {
 .selectionList {
     flex: 1;
     min-height: 0;
-    overflow: auto;
-    padding: 6px 10px 6px 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 12px 6px 6px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, .08);
     background: rgba(12, 14, 22, .55);
@@ -527,53 +541,116 @@ body {
     background-clip: content-box;
 }
 
-.selectionRow {
+.selectionTreeRow {
     display: grid;
-    grid-template-columns: 20px 1fr auto;
+    grid-template-columns: 18px 20px 1fr auto;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, .06);
-    background: rgba(255, 255, 255, .04);
-    margin-bottom: 6px;
+    gap: 8px;
+    min-height: 30px;
+    margin-bottom: 4px;
+    padding: 3px 8px 3px calc(8px + (var(--tree-depth, 0) * 14px));
+    border-radius: 8px;
     min-width: 0;
+    position: relative;
+    width: calc(100% - 2px);
+    max-width: 100%;
+    box-shadow: inset 0 0 0 1px transparent;
 }
 
-.selectionRow:last-child {
+.selectionTreeGroup {
+    margin-bottom: 4px;
+    border-radius: 10px;
+    width: calc(100% - 2px);
+    max-width: 100%;
+    box-shadow: inset 0 0 0 1px transparent;
+}
+
+.selectionTreeGroup:last-child {
     margin-bottom: 0;
 }
 
-.selectionIcon {
-    width: 20px;
-    height: 20px;
+.selectionTreeChildren {
+    display: block;
+    overflow: hidden;
+    transform-origin: top;
+}
+
+.selectionTreeChildren.isExpanding {
+    animation: treeReveal 190ms ease;
+}
+
+@keyframes treeReveal {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0px);
+    }
+}
+
+.selectionTreeGroup.isRemovedGroup {
+    background: rgba(190, 40, 40, .12);
+    box-shadow: inset 0 0 0 1px rgba(220, 80, 80, .25);
+}
+
+.selectionTreeGroup.isRemovedGroup>.selectionTreeRow .selectionTreeName {
+    color: rgba(255, 190, 190, .95);
+}
+
+.selectionTreeToggle {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, .72);
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.selectionTreeToggle:hover {
+    background: rgba(255, 255, 255, .08);
+    color: rgba(255, 255, 255, .92);
+}
+
+.selectionTreeRow:hover {
+    background: rgba(255, 255, 255, .05);
+}
+
+.selectionTreeRow.isRemoved {
+    background: rgba(190, 40, 40, .12);
+    box-shadow: inset 0 0 0 1px rgba(220, 80, 80, .25);
+}
+
+.selectionTreeRow.isRemoved .selectionTreeName {
+    color: rgba(255, 190, 190, .95);
+}
+
+.selectionTreeRow:last-child {
+    margin-bottom: 0;
+}
+
+.selectionTreeIcon {
+    width: 18px;
+    height: 18px;
     display: grid;
     place-items: center;
     font-size: 12px;
-    color: rgba(255, 255, 255, .78);
-    background: rgba(255, 255, 255, .08);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, .12);
+    color: rgba(255, 255, 255, .80);
 }
 
-.selectionText {
+.selectionTreeName {
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.selectionPrimary {
     font-size: 12.5px;
     color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.selectionSecondary {
-    font-size: 11px;
-    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -584,13 +661,16 @@ body {
     border: 1px solid rgba(255, 255, 255, .10);
     background: rgba(255, 255, 255, .04);
     color: var(--muted);
-    width: 26px;
-    height: 26px;
+    height: 24px;
+    padding: 0 9px;
     border-radius: 8px;
     cursor: pointer;
-    display: grid;
-    place-items: center;
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .01em;
     line-height: 1;
     transition: background .2s ease, border-color .2s ease, color .2s ease;
 }
@@ -599,6 +679,24 @@ body {
     background: rgba(255, 255, 255, .08);
     border-color: rgba(255, 255, 255, .20);
     color: var(--text);
+}
+
+.selectionRemove.isAdd {
+    border-color: rgba(100, 190, 120, .35);
+    background: rgba(70, 170, 95, .14);
+    color: rgba(190, 255, 200, .95);
+}
+
+.selectionRemove.isAdd:hover {
+    border-color: rgba(120, 210, 140, .45);
+    background: rgba(85, 190, 110, .20);
+    color: rgba(220, 255, 228, 1);
+}
+
+.selectionRemove.isDisabled,
+.selectionRemove:disabled {
+    opacity: .55;
+    cursor: not-allowed;
 }
 
 .selectionEmpty {

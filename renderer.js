@@ -27,6 +27,13 @@ let selectionEntries = [];
 let lastBundleMeta = null;
 let lastTotalLabel = "Total";
 let activeTab = "included";
+let rebundleToken = 0;
+let hierarchyToken = 0;
+let selectionHierarchy = [];
+const excludedAbsPaths = new Set();
+const collapsedFolders = new Set();
+const knownFolderPaths = new Set();
+const animatingFolders = new Set();
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -35,7 +42,7 @@ let scrollTimer = null;
 outputEl.style.setProperty("--scroll-fade", `${FADE_MS}ms`);
 statsEl.classList.add("stats");
 renderStats(null);
-targetEl.textContent = summarizeSelection();
+targetEl.textContent = buildTargetLabel();
 renderSelection();
 setView("selection");
 
@@ -105,24 +112,133 @@ function getSelectionCounts() {
     );
 }
 
-function addEntries(newEntries) {
+function normalizePath(value) {
+    return String(value || "").replace(/\\/g, "/");
+}
+
+function isSameOrDescendantPath(candidate, base) {
+    const left = normalizePath(candidate);
+    const right = normalizePath(base);
+    return left === right || left.startsWith(`${right}/`);
+}
+
+function pruneExcludedPaths() {
+    if (selectionEntries.length === 0) {
+        excludedAbsPaths.clear();
+        return;
+    }
+
+    const selectedRoots = selectionEntries
+        .filter((entry) => entry.kind === "folder")
+        .map((entry) => entry.absPath);
+
+    for (const excludedPath of Array.from(excludedAbsPaths)) {
+        const keep = selectedRoots.some((rootPath) => isSameOrDescendantPath(excludedPath, rootPath));
+        if (!keep) excludedAbsPaths.delete(excludedPath);
+    }
+}
+
+async function refreshSelectionHierarchy() {
+    const token = ++hierarchyToken;
+
+    if (selectionEntries.length === 0) {
+        selectionHierarchy = [];
+        knownFolderPaths.clear();
+        collapsedFolders.clear();
+        renderSelection();
+        return;
+    }
+
+    try {
+        const res = await window.api.getSelectionHierarchy(selectionEntries, {
+            excludedPaths: Array.from(excludedAbsPaths),
+        });
+        if (token !== hierarchyToken) return;
+
+        selectionHierarchy = Array.isArray(res?.nodes) ? res.nodes : [];
+        const selectedFolderRoots = new Set(
+            selectionEntries
+                .filter((entry) => entry.kind === "folder")
+                .map((entry) => entry.absPath)
+        );
+        syncFolderCollapseDefaults(selectionHierarchy, selectedFolderRoots);
+        renderSelection();
+    } catch (error) {
+        console.error("Failed to load selection hierarchy", error);
+    }
+}
+
+function syncFolderCollapseDefaults(nodes, selectedFolderRoots) {
+    const currentFolderPaths = new Set();
+
+    const walk = (nodeList) => {
+        for (const node of nodeList) {
+            if (node.kind === "folder") {
+                currentFolderPaths.add(node.absPath);
+                if (!knownFolderPaths.has(node.absPath)) {
+                    knownFolderPaths.add(node.absPath);
+                    if (selectedFolderRoots.has(node.absPath)) {
+                        collapsedFolders.delete(node.absPath);
+                    } else {
+                        collapsedFolders.add(node.absPath);
+                    }
+                }
+            }
+            if (node.children?.length) walk(node.children);
+        }
+    };
+
+    walk(nodes);
+
+    for (const known of Array.from(knownFolderPaths)) {
+        if (!currentFolderPaths.has(known)) {
+            knownFolderPaths.delete(known);
+            collapsedFolders.delete(known);
+        }
+    }
+}
+
+async function addEntries(newEntries) {
     const next = new Map(selectionEntries.map((entry) => [`${entry.kind}:${entry.absPath}`, entry]));
     for (const entry of newEntries) {
         next.set(`${entry.kind}:${entry.absPath}`, entry);
+        excludedAbsPaths.delete(entry.absPath);
     }
     selectionEntries = Array.from(next.values());
+    pruneExcludedPaths();
     lastBundleMeta = null;
-    targetEl.textContent = summarizeSelection();
+    outputEl.value = "";
+    targetEl.textContent = buildTargetLabel();
     renderStats(null);
-    renderSelection();
+    await refreshSelectionHierarchy();
+    await rebundleSelectionLive();
 }
 
-function removeEntry(absPath, kind) {
-    selectionEntries = selectionEntries.filter((entry) => !(entry.absPath === absPath && entry.kind === kind));
+function resetSelectionState() {
+    selectionEntries = [];
+    selectionHierarchy = [];
+    excludedAbsPaths.clear();
+    collapsedFolders.clear();
+    knownFolderPaths.clear();
     lastBundleMeta = null;
-    targetEl.textContent = summarizeSelection();
-    renderStats(null);
+    outputEl.value = "";
+    targetEl.textContent = buildTargetLabel();
     renderSelection();
+    renderStats(null);
+}
+
+async function toggleEntryBundled(absPath, includeInBundle) {
+    if (includeInBundle) {
+        excludedAbsPaths.delete(absPath);
+    } else {
+        excludedAbsPaths.add(absPath);
+    }
+
+    pruneExcludedPaths();
+    lastBundleMeta = null;
+    renderStats(null);
+    await refreshSelectionHierarchy();
+    await rebundleSelectionLive();
 }
 
 function summarizeSelection() {
@@ -130,54 +246,246 @@ function summarizeSelection() {
     return `Selected: ${counts.folders} folder${counts.folders === 1 ? "" : "s"}, ${counts.files} file${counts.files === 1 ? "" : "s"}`;
 }
 
-function renderSelection() {
+function buildTargetLabel() {
+    if (selectionEntries.length === 0) return "(no target selected)";
+
+    const getPathParts = (absPath) => String(absPath).replace(/\\/g, "/").split("/").filter(Boolean);
+    const getName = (absPath) => {
+        const parts = getPathParts(absPath);
+        return parts[parts.length - 1] || absPath;
+    };
+    const getParentName = (absPath) => {
+        const parts = getPathParts(absPath);
+        return parts.length >= 2 ? parts[parts.length - 2] : "root";
+    };
+
+    if (selectionEntries.length === 1) {
+        const only = selectionEntries[0];
+        return `Selected ${getName(only.absPath)} from ${getParentName(only.absPath)}`;
+    }
+
     const counts = getSelectionCounts();
+    const allParentPaths = selectionEntries.map((entry) => {
+        const parts = getPathParts(entry.absPath);
+        return parts.slice(0, -1);
+    });
+
+    const common = [];
+    const shortest = Math.min(...allParentPaths.map((parts) => parts.length));
+    for (let i = 0; i < shortest; i += 1) {
+        const segment = allParentPaths[0][i];
+        if (allParentPaths.some((parts) => parts[i] !== segment)) break;
+        common.push(segment);
+    }
+
+    const parentName = common.length > 0 ? common[common.length - 1] : getParentName(selectionEntries[0].absPath);
+    return `Selected ${counts.folders} folder(s) and ${counts.files} file(s) from ${parentName}`;
+}
+
+async function rebundleSelectionLive() {
+    const token = ++rebundleToken;
+
+    if (selectionEntries.length === 0) {
+        outputEl.value = "";
+        lastBundleMeta = null;
+        lastTotalLabel = "Total";
+        renderStats(null);
+        setView("selection");
+        return;
+    }
+
+    try {
+        const options = {
+            useBasenameOnly: basenameOnlyEl.checked,
+            excludedPaths: Array.from(excludedAbsPaths),
+        };
+        const res = await window.api.bundleSelection(selectionEntries, options);
+        if (token !== rebundleToken) return;
+
+        outputEl.value = res.output;
+        lastBundleMeta = res;
+        lastTotalLabel = "Total";
+        renderStats(res.stats);
+    } catch (error) {
+        console.error("Live rebundle failed", error);
+    }
+}
+
+function renderSelection() {
+    const counts = { folders: 0, files: 0 };
+
+    const countNodes = (node) => {
+        if (node.kind === "folder") counts.folders += 1;
+        if (node.kind === "file") counts.files += 1;
+        for (const child of node.children ?? []) countNodes(child);
+    };
+
+    for (const node of selectionHierarchy) countNodes(node);
     const total = counts.folders + counts.files;
-    selectionSummaryEl.textContent = `Items: ${total} (folders ${counts.folders}, files ${counts.files})`;
+
+    selectionSummaryEl.textContent = `Bundled tree: ${total} items (folders ${counts.folders}, files ${counts.files})`;
 
     selectionListEl.innerHTML = "";
     const frag = document.createDocumentFragment();
 
-    for (const entry of selectionEntries) {
+    const renderNode = (node, depth, ancestorExcluded = false) => {
+        const isFolder = node.kind === "folder";
+        const hasChildren = Boolean(node.children?.length);
+        const collapsed = isFolder && collapsedFolders.has(node.absPath);
+        const directExcluded = node.excluded === true;
+        const effectiveExcluded = ancestorExcluded || directExcluded;
+
+        const group = document.createElement("div");
+        group.className = "selectionTreeGroup";
+        group.classList.toggle("isRemovedGroup", isFolder && directExcluded);
+
         const row = document.createElement("div");
-        row.className = "selectionRow";
+        row.className = "selectionTreeRow";
+        row.style.setProperty("--tree-depth", String(depth));
+        row.classList.toggle("isRemoved", !isFolder && directExcluded);
+
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "selectionTreeToggle";
+        toggle.textContent = isFolder ? (collapsed ? "▸" : "▾") : "";
+        toggle.dataset.path = node.absPath;
+        toggle.style.visibility = isFolder && hasChildren ? "visible" : "hidden";
+        toggle.setAttribute("aria-label", collapsed ? "Expand folder" : "Collapse folder");
 
         const icon = document.createElement("div");
-        icon.className = "selectionIcon";
-        icon.textContent = entry.kind === "folder" ? "📁" : "📄";
+        icon.className = "selectionTreeIcon";
+        icon.textContent = isFolder ? "📁" : "📄";
 
-        const text = document.createElement("div");
-        text.className = "selectionText";
-
-        const base = entry.absPath.split("/").pop() || entry.absPath;
-        const primary = document.createElement("div");
-        primary.className = "selectionPrimary";
-        primary.textContent = base;
-
-        const secondary = document.createElement("div");
-        secondary.className = "selectionSecondary";
-        secondary.textContent = entry.absPath;
-
-        text.appendChild(primary);
-        text.appendChild(secondary);
+        const name = document.createElement("div");
+        name.className = "selectionTreeName";
+        name.textContent = node.name;
 
         const removeBtn = document.createElement("button");
         removeBtn.className = "selectionRemove";
         removeBtn.type = "button";
-        removeBtn.textContent = "×";
-        removeBtn.dataset.path = entry.absPath;
-        removeBtn.dataset.kind = entry.kind;
-        removeBtn.setAttribute("aria-label", "Remove");
+        removeBtn.dataset.path = node.absPath;
+        removeBtn.dataset.kind = node.kind;
+        removeBtn.dataset.action = "remove";
 
+        if (directExcluded) {
+            removeBtn.textContent = "Add";
+            removeBtn.dataset.action = "add";
+            removeBtn.classList.add("isAdd");
+            removeBtn.setAttribute("aria-label", `Add ${node.name} back to bundle`);
+        } else if (effectiveExcluded) {
+            removeBtn.textContent = "Removed";
+            removeBtn.disabled = true;
+            removeBtn.classList.add("isDisabled");
+            removeBtn.setAttribute("aria-label", `${node.name} removed by parent folder`);
+        } else {
+            removeBtn.textContent = "Remove";
+            removeBtn.setAttribute("aria-label", `Remove ${node.name} from bundle`);
+        }
+
+        row.appendChild(toggle);
         row.appendChild(icon);
-        row.appendChild(text);
+        row.appendChild(name);
         row.appendChild(removeBtn);
+        group.appendChild(row);
 
-        frag.appendChild(row);
+        if (isFolder && hasChildren && !collapsed) {
+            const childrenWrap = document.createElement("div");
+            childrenWrap.className = "selectionTreeChildren";
+            for (const child of node.children) {
+                childrenWrap.appendChild(renderNode(child, depth + 1, effectiveExcluded));
+            }
+            group.appendChild(childrenWrap);
+        }
+
+        return group;
+    };
+
+    for (const node of selectionHierarchy) {
+        frag.appendChild(renderNode(node, 0));
     }
 
     selectionListEl.appendChild(frag);
     selectionEmptyEl.style.display = total === 0 ? "grid" : "none";
+}
+
+function findFolderToggle(path) {
+    const toggles = selectionListEl.querySelectorAll(".selectionTreeToggle");
+    for (const toggle of toggles) {
+        if (toggle.dataset.path === path) return toggle;
+    }
+    return null;
+}
+
+async function animateFolderToggle(path) {
+    if (animatingFolders.has(path)) return;
+    animatingFolders.add(path);
+
+    try {
+        const isCollapsed = collapsedFolders.has(path);
+
+        if (isCollapsed) {
+            collapsedFolders.delete(path);
+            renderSelection();
+
+            const expandedToggle = findFolderToggle(path);
+            const expandedGroup = expandedToggle?.closest(".selectionTreeGroup");
+            const expandedChildren = expandedGroup?.querySelector(":scope > .selectionTreeChildren");
+            if (expandedChildren) {
+                expandedChildren.classList.remove("isExpanding");
+                void expandedChildren.offsetWidth;
+                expandedChildren.classList.add("isExpanding");
+                expandedChildren.addEventListener("animationend", () => {
+                    expandedChildren.classList.remove("isExpanding");
+                }, { once: true });
+            }
+            return;
+        }
+
+        const toggle = findFolderToggle(path);
+        const group = toggle?.closest(".selectionTreeGroup");
+        const childrenWrap = group?.querySelector(":scope > .selectionTreeChildren");
+
+        if (!childrenWrap) {
+            collapsedFolders.add(path);
+            renderSelection();
+            return;
+        }
+
+        const startHeight = childrenWrap.scrollHeight;
+        childrenWrap.style.overflow = "hidden";
+        childrenWrap.style.maxHeight = `${startHeight}px`;
+        childrenWrap.style.opacity = "1";
+        childrenWrap.style.transform = "translateY(0px)";
+        childrenWrap.style.transition = "max-height 180ms ease, opacity 150ms ease, transform 180ms ease";
+
+        requestAnimationFrame(() => {
+            childrenWrap.style.maxHeight = "0px";
+            childrenWrap.style.opacity = "0";
+            childrenWrap.style.transform = "translateY(-6px)";
+        });
+
+        await new Promise((resolve) => {
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                childrenWrap.removeEventListener("transitionend", onTransitionEnd);
+                resolve();
+            };
+
+            const onTransitionEnd = (event) => {
+                if (event.propertyName === "max-height") finish();
+            };
+
+            childrenWrap.addEventListener("transitionend", onTransitionEnd);
+            setTimeout(finish, 260);
+        });
+
+        collapsedFolders.add(path);
+        renderSelection();
+    } finally {
+        animatingFolders.delete(path);
+    }
 }
 
 function setView(view) {
@@ -229,7 +537,20 @@ function renderStats(statsInput) {
 
     if (!stats) {
         statsEl.dataset.hasDetails = "";
-        statsEl.innerHTML = `<span class="statsPlaceholder">—</span>`;
+        statsEl.innerHTML = `
+            <div class="statChip statChipPlaceholder" aria-hidden="true">
+                <span class="statLabel">Included</span>
+                <span class="statValue">—</span>
+            </div>
+            <div class="statChip statChipPlaceholder" aria-hidden="true">
+                <span class="statLabel">Skipped</span>
+                <span class="statValue">—</span>
+            </div>
+            <div class="statChip statChipPlaceholder" aria-hidden="true">
+                <span class="statLabel">${lastTotalLabel}</span>
+                <span class="statValue">—</span>
+            </div>
+        `;
         return;
     }
 
@@ -388,29 +709,46 @@ function renderDetailsList() {
 document.getElementById("pickFolder").addEventListener("click", async () => {
     const picked = await window.api.pickFolder();
     if (!picked) return;
+    resetSelectionState();
     mode = "folder";
     folderPath = picked;
     filePaths = null;
-    addEntries([{ kind: "folder", absPath: picked }]);
     lastTotalLabel = "Total scanned";
-    renderStats(null);
+    await addEntries([{ kind: "folder", absPath: picked }]);
 });
 
 document.getElementById("pickFiles").addEventListener("click", async () => {
     const picked = await window.api.pickFiles();
     if (!picked) return;
+    resetSelectionState();
     mode = "files";
     filePaths = picked;
     folderPath = null;
-    addEntries(picked.map((filePath) => ({ kind: "file", absPath: filePath })));
     lastTotalLabel = "Total";
-    renderStats(null);
+    await addEntries(picked.map((filePath) => ({ kind: "file", absPath: filePath })));
+});
+
+basenameOnlyEl.addEventListener("change", async () => {
+    if (selectionEntries.length === 0) return;
+    await rebundleSelectionLive();
 });
 
 selectionListEl.addEventListener("click", (event) => {
+    const toggle = event.target.closest(".selectionTreeToggle");
+    if (toggle?.dataset.path) {
+        void animateFolderToggle(toggle.dataset.path);
+        return;
+    }
+
     const button = event.target.closest(".selectionRemove");
     if (!button) return;
-    removeEntry(button.dataset.path, button.dataset.kind);
+    if (button.disabled) return;
+    const action = button.dataset.action;
+    if (action === "add") {
+        void toggleEntryBundled(button.dataset.path, true);
+        return;
+    }
+    void toggleEntryBundled(button.dataset.path, false);
 });
 
 viewSelectionBtn.addEventListener("click", () => setView("selection"));
@@ -460,47 +798,10 @@ selectionViewEl.addEventListener("drop", async (event) => {
         })
     );
 
-    addEntries(entries.filter(Boolean));
+    void addEntries(entries.filter(Boolean));
 });
 
-document.getElementById("bundle").addEventListener("click", async () => {
-    const options = { useBasenameOnly: basenameOnlyEl.checked };
-
-    if (selectionEntries.length > 0) {
-        const res = await window.api.bundleSelection(selectionEntries, options);
-        outputEl.value = res.output;
-        lastBundleMeta = res;
-        lastTotalLabel = "Total";
-        renderStats(res.stats);
-        setView("output");
-        toast("Bundled");
-        return;
-    }
-
-    if (mode === "folder" && folderPath) {
-        const res = await window.api.bundleFolder(folderPath, options);
-        outputEl.value = res.output;
-        lastBundleMeta = res;
-        lastTotalLabel = "Total scanned";
-        renderStats(res.stats);
-        setView("output");
-        toast("Bundled");
-        return;
-    }
-
-    if (mode === "files" && filePaths?.length) {
-        const res = await window.api.bundleFiles(filePaths, options);
-        outputEl.value = res.output;
-        lastBundleMeta = res;
-        lastTotalLabel = "Total";
-        renderStats(res.stats);
-        setView("output");
-        toast("Bundled");
-        return;
-    }
-
-    alert("Pick a folder or files, then click Bundle.");
-});
+// Bundling is live; no manual bundle action is required.
 
 document.getElementById("copy").addEventListener("click", async () => {
     await window.api.copyToClipboard(outputEl.value);
