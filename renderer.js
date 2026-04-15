@@ -14,6 +14,7 @@ const selectionSummaryEl = document.getElementById("selectionSummary");
 const selectionListEl = document.getElementById("selectionList");
 const selectionEmptyEl = document.getElementById("selectionEmpty");
 const addContentBtn = document.getElementById("addContent");
+const clearSelectionBtn = document.getElementById("clearSelection");
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
@@ -463,6 +464,7 @@ function resetSelectionState() {
     knownDisplayFolderPaths.clear();
     gitRootBySelectionPath.clear();
     lastBundleMeta = null;
+    lastTotalLabel = "Total";
     outputEl.value = "";
     targetEl.textContent = buildTargetLabel();
     renderSelection();
@@ -820,7 +822,9 @@ function renderSelection() {
 
     for (const node of displayRoots) countNodes(node);
     const total = counts.folders + counts.files;
-    addContentBtn.classList.toggle("hidden", selectionEntries.length === 0);
+    const hasSelection = selectionEntries.length > 0;
+    addContentBtn.classList.toggle("hidden", !hasSelection);
+    clearSelectionBtn.classList.toggle("hidden", !hasSelection);
 
     selectionSummaryEl.textContent = `Bundled tree: ${total} items (folders ${counts.folders}, files ${counts.files})`;
 
@@ -1276,6 +1280,11 @@ document.getElementById("pickEntries").addEventListener("click", async () => {
 
 document.getElementById("addContent").addEventListener("click", async () => {
     await pickContent({ replace: false });
+});
+
+document.getElementById("clearSelection").addEventListener("click", () => {
+    resetSelectionState();
+    toast("Selection cleared");
 });
 
 basenameOnlyEl.addEventListener("change", async () => {
