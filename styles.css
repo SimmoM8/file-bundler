@@ -903,6 +903,39 @@ body {
     box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
 }
 
+.confirmCard {
+    width: min(460px, 92vw);
+    height: auto;
+    max-height: none;
+    gap: 10px;
+}
+
+.confirmBody {
+    display: grid;
+    gap: 12px;
+}
+
+.confirmMessage {
+    margin: 0;
+    color: rgba(255, 255, 255, .86);
+    font-size: 12.25px;
+    line-height: 1.45;
+}
+
+.confirmCheckbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11.75px;
+    user-select: none;
+}
+
+.confirmCheckbox input {
+    margin: 0;
+    accent-color: rgba(140, 180, 255, .95);
+}
+
 .modalHeader {
     display: flex;
     align-items: center;

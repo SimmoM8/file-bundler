@@ -21,6 +21,7 @@ const viewOutputBtn = document.getElementById("viewOutput");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
+const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -78,6 +79,131 @@ function toast(msg) {
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
+}
+
+function getSkipReplaceConfirmPreference() {
+    try {
+        return localStorage.getItem(SKIP_REPLACE_CONFIRM_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+function setSkipReplaceConfirmPreference(skip) {
+    try {
+        if (skip) {
+            localStorage.setItem(SKIP_REPLACE_CONFIRM_KEY, "1");
+        } else {
+            localStorage.removeItem(SKIP_REPLACE_CONFIRM_KEY);
+        }
+    } catch {
+        // Ignore storage failures.
+    }
+}
+
+function confirmAction({
+    title,
+    message,
+    confirmLabel = "Confirm",
+    cancelLabel = "Cancel",
+    showDontAskAgain = false,
+    dontAskAgainLabel = "Don't ask me again",
+}) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "modalOverlay";
+        overlay.setAttribute("aria-hidden", "false");
+
+        const card = document.createElement("div");
+        card.className = "modalCard glass confirmCard";
+        card.setAttribute("role", "dialog");
+        card.setAttribute("aria-modal", "true");
+
+        const header = document.createElement("div");
+        header.className = "modalHeader";
+
+        const titleEl = document.createElement("div");
+        titleEl.className = "modalTitle";
+        titleEl.textContent = title;
+
+        const actions = document.createElement("div");
+        actions.className = "modalActions";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "btn subtle";
+        cancelBtn.textContent = cancelLabel;
+
+        const confirmBtn = document.createElement("button");
+        confirmBtn.type = "button";
+        confirmBtn.className = "btn";
+        confirmBtn.textContent = confirmLabel;
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        header.appendChild(titleEl);
+        header.appendChild(actions);
+
+        const body = document.createElement("div");
+        body.className = "confirmBody";
+
+        const messageEl = document.createElement("p");
+        messageEl.className = "confirmMessage";
+        messageEl.textContent = message;
+        body.appendChild(messageEl);
+
+        let checkbox = null;
+        if (showDontAskAgain) {
+            const checkboxWrap = document.createElement("label");
+            checkboxWrap.className = "confirmCheckbox";
+
+            checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+
+            const checkboxText = document.createElement("span");
+            checkboxText.textContent = dontAskAgainLabel;
+
+            checkboxWrap.appendChild(checkbox);
+            checkboxWrap.appendChild(checkboxText);
+            body.appendChild(checkboxWrap);
+        }
+
+        card.appendChild(header);
+        card.appendChild(body);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+
+        const cleanup = () => {
+            document.removeEventListener("keydown", onKeyDown);
+            overlay.remove();
+        };
+
+        const done = (confirmed) => {
+            const dontAskAgain = Boolean(checkbox?.checked);
+            cleanup();
+            resolve({ confirmed, dontAskAgain });
+        };
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                done(false);
+                return;
+            }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                done(true);
+            }
+        };
+
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) done(false);
+        });
+        cancelBtn.addEventListener("click", () => done(false));
+        confirmBtn.addEventListener("click", () => done(true));
+        document.addEventListener("keydown", onKeyDown);
+        confirmBtn.focus();
+    });
 }
 
 function normalizeStats(input) {
@@ -1275,6 +1401,22 @@ async function pickContent({ replace }) {
 }
 
 document.getElementById("pickEntries").addEventListener("click", async () => {
+    if (selectionEntries.length > 0 && !getSkipReplaceConfirmPreference()) {
+        const { confirmed, dontAskAgain } = await confirmAction({
+            title: "Replace current selection?",
+            message: "Selecting content here replaces your current selection with a new one.",
+            confirmLabel: "Replace selection",
+            cancelLabel: "Keep current",
+            showDontAskAgain: true,
+            dontAskAgainLabel: "Don't ask me again",
+        });
+
+        if (!confirmed) return;
+        if (dontAskAgain) {
+            setSkipReplaceConfirmPreference(true);
+        }
+    }
+
     await pickContent({ replace: true });
 });
 
@@ -1282,7 +1424,17 @@ document.getElementById("addContent").addEventListener("click", async () => {
     await pickContent({ replace: false });
 });
 
-document.getElementById("clearSelection").addEventListener("click", () => {
+document.getElementById("clearSelection").addEventListener("click", async () => {
+    if (selectionEntries.length === 0) return;
+
+    const { confirmed } = await confirmAction({
+        title: "Clear current selection?",
+        message: "This removes all selected files and folders and resets the panel.",
+        confirmLabel: "Clear selection",
+        cancelLabel: "Cancel",
+    });
+
+    if (!confirmed) return;
     resetSelectionState();
     toast("Selection cleared");
 });
