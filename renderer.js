@@ -77,10 +77,26 @@ outputEl.addEventListener("pointerenter", () => outputEl.classList.add("hovering
 outputEl.addEventListener("pointerleave", () => outputEl.classList.remove("hovering"));
 
 function toast(msg) {
+    toastEl.classList.remove("success", "error");
+    toastEl.classList.add("success");
     toastEl.textContent = msg;
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 5000);
+}
+
+function toastError(msg) {
+    toastEl.classList.remove("success", "error");
+    toastEl.classList.add("error");
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 5000);
+}
+
+function toErrorMessage(error, fallback) {
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
 }
 
 async function renderAppMeta() {
@@ -347,6 +363,7 @@ async function refreshSelectionHierarchy() {
         renderSelection();
     } catch (error) {
         console.error("Failed to load selection hierarchy", error);
+        throw new Error("Could not refresh the selection tree.");
     }
 }
 
@@ -597,6 +614,10 @@ async function addEntries(newEntries) {
     }
     await refreshSelectionHierarchy();
     await rebundleSelectionLive();
+    return {
+        addedCount: newlyAddedPaths.size,
+        totalCount: selectionEntries.length,
+    };
 }
 
 function resetSelectionState() {
@@ -893,7 +914,7 @@ async function rebundleSelectionLive() {
         lastTotalLabel = "Total";
         renderStats(null);
         setView("selection");
-        return;
+        return { status: "empty" };
     }
 
     try {
@@ -902,14 +923,16 @@ async function rebundleSelectionLive() {
             excludedPaths: Array.from(excludedAbsPaths),
         };
         const res = await window.api.bundleSelection(selectionEntries, options);
-        if (token !== rebundleToken) return;
+        if (token !== rebundleToken) return { status: "stale" };
 
         outputEl.value = res.output;
         lastBundleMeta = res;
         lastTotalLabel = "Total";
         renderStats(res.stats);
+        return { status: "success" };
     } catch (error) {
         console.error("Live rebundle failed", error);
+        throw new Error("Failed to rebundle with the current options.");
     }
 }
 
@@ -1390,56 +1413,90 @@ function renderDetailsList() {
 }
 
 async function pickContent({ replace }) {
-    const picked = await window.api.pickEntries();
-    if (!picked || picked.length === 0) return;
-
-    const entries = await Promise.all(
-        picked.map(async (absPath) => {
-            const stat = await window.api.statPath(absPath);
-            if (stat?.isDirectory) return { kind: "folder", absPath };
-            if (stat?.isFile) return { kind: "file", absPath };
-            return null;
-        })
-    );
-
-    const validEntries = entries.filter(Boolean);
-    if (validEntries.length === 0) return;
-
-    let nextEntries = validEntries;
-    if (!replace) {
-        const before = validEntries.length;
-        nextEntries = validEntries.filter((entry) => !isAlreadySelected(entry, selectionEntries));
-        const skippedCount = before - nextEntries.length;
-        if (skippedCount > 0) {
-            toast(`Skipped ${skippedCount} already selected item${skippedCount === 1 ? "" : "s"}`);
+    try {
+        const picked = await window.api.pickEntries();
+        if (!picked || picked.length === 0) {
+            toastError(replace ? "Selection unchanged." : "No content selected.");
+            return;
         }
+
+        const entries = await Promise.all(
+            picked.map(async (absPath) => {
+                const stat = await window.api.statPath(absPath);
+                if (stat?.isDirectory) return { kind: "folder", absPath };
+                if (stat?.isFile) return { kind: "file", absPath };
+                return null;
+            })
+        );
+
+        const validEntries = entries.filter(Boolean);
+        if (validEntries.length === 0) {
+            toastError("No valid files or folders were selected.");
+            return;
+        }
+
+        let nextEntries = validEntries;
+        let skippedCount = 0;
+        if (!replace) {
+            const before = validEntries.length;
+            nextEntries = validEntries.filter((entry) => !isAlreadySelected(entry, selectionEntries));
+            skippedCount = before - nextEntries.length;
+        }
+
+        if (nextEntries.length === 0) {
+            toastError("No new content was added. Everything is already selected.");
+            return;
+        }
+
+        if (replace) resetSelectionState();
+        lastTotalLabel = "Total";
+        const { addedCount } = await addEntries(nextEntries);
+        const label = `${addedCount} item${addedCount === 1 ? "" : "s"}`;
+
+        if (replace) {
+            toast(`Selected ${label}.`);
+            return;
+        }
+
+        const skippedTail = skippedCount > 0
+            ? ` (${skippedCount} already selected)`
+            : "";
+        toast(`Added ${label} to selection${skippedTail}.`);
+    } catch (error) {
+        console.error("Failed to pick content", error);
+        const fallback = replace
+            ? "Could not replace the current selection."
+            : "Could not add content to the selection.";
+        toastError(toErrorMessage(error, fallback));
     }
-
-    if (nextEntries.length === 0) return;
-
-    if (replace) resetSelectionState();
-    lastTotalLabel = "Total";
-    await addEntries(nextEntries);
 }
 
 document.getElementById("pickEntries").addEventListener("click", async () => {
-    if (selectionEntries.length > 0 && !getSkipReplaceConfirmPreference()) {
-        const { confirmed, dontAskAgain } = await confirmAction({
-            title: "Replace current selection?",
-            message: "Selecting content here replaces your current selection with a new one.",
-            confirmLabel: "Replace selection",
-            cancelLabel: "Keep current",
-            showDontAskAgain: true,
-            dontAskAgainLabel: "Don't ask me again",
-        });
+    try {
+        if (selectionEntries.length > 0 && !getSkipReplaceConfirmPreference()) {
+            const { confirmed, dontAskAgain } = await confirmAction({
+                title: "Replace current selection?",
+                message: "Selecting content here replaces your current selection with a new one.",
+                confirmLabel: "Replace selection",
+                cancelLabel: "Keep current",
+                showDontAskAgain: true,
+                dontAskAgainLabel: "Don't ask me again",
+            });
 
-        if (!confirmed) return;
-        if (dontAskAgain) {
-            setSkipReplaceConfirmPreference(true);
+            if (!confirmed) {
+                toast("Kept current selection.");
+                return;
+            }
+            if (dontAskAgain) {
+                setSkipReplaceConfirmPreference(true);
+            }
         }
-    }
 
-    await pickContent({ replace: true });
+        await pickContent({ replace: true });
+    } catch (error) {
+        console.error("Failed to start selection", error);
+        toastError(toErrorMessage(error, "Could not start content selection."));
+    }
 });
 
 document.getElementById("addContent").addEventListener("click", async () => {
@@ -1447,26 +1504,44 @@ document.getElementById("addContent").addEventListener("click", async () => {
 });
 
 document.getElementById("clearSelection").addEventListener("click", async () => {
-    if (selectionEntries.length === 0) return;
+    try {
+        if (selectionEntries.length === 0) return;
 
-    const { confirmed } = await confirmAction({
-        title: "Clear current selection?",
-        message: "This removes all selected files and folders and resets the panel.",
-        confirmLabel: "Clear selection",
-        cancelLabel: "Cancel",
-    });
+        const { confirmed } = await confirmAction({
+            title: "Clear current selection?",
+            message: "This removes all selected files and folders and resets the panel.",
+            confirmLabel: "Clear selection",
+            cancelLabel: "Cancel",
+        });
 
-    if (!confirmed) return;
-    resetSelectionState();
-    toast("Selection cleared");
+        if (!confirmed) {
+            toast("Selection kept.");
+            return;
+        }
+
+        resetSelectionState();
+        toast("Selection cleared.");
+    } catch (error) {
+        console.error("Failed to clear selection", error);
+        toastError(toErrorMessage(error, "Could not clear the selection."));
+    }
 });
 
 basenameOnlyEl.addEventListener("change", async () => {
     if (selectionEntries.length === 0) return;
-    await rebundleSelectionLive();
+    try {
+        const result = await rebundleSelectionLive();
+        if (result?.status === "success") {
+            const mode = basenameOnlyEl.checked ? "base names" : "relative paths";
+            toast(`Rebundled using ${mode}.`);
+        }
+    } catch (error) {
+        console.error("Failed to rebundle after basename toggle", error);
+        toastError(toErrorMessage(error, "Could not rebundle after toggling Base names."));
+    }
 });
 
-selectionListEl.addEventListener("click", (event) => {
+selectionListEl.addEventListener("click", async (event) => {
     const toggle = event.target.closest(".selectionTreeToggle");
     if (toggle?.dataset.path) {
         void animateFolderToggle(toggle.dataset.path);
@@ -1476,12 +1551,23 @@ selectionListEl.addEventListener("click", (event) => {
     const button = event.target.closest(".selectionRemove");
     if (!button) return;
     if (button.disabled) return;
-    const action = button.dataset.action;
-    if (action === "add") {
-        void toggleEntryBundled(button.dataset.path, true);
-        return;
+
+    const row = button.closest(".selectionTreeRow");
+    const entryName = row?.querySelector(".selectionTreeName")?.textContent?.trim() || "item";
+
+    try {
+        const action = button.dataset.action;
+        if (action === "add") {
+            await toggleEntryBundled(button.dataset.path, true);
+            toast(`Re-added ${entryName} to bundle.`);
+            return;
+        }
+        await toggleEntryBundled(button.dataset.path, false);
+        toast(`Removed ${entryName} from bundle.`);
+    } catch (error) {
+        console.error("Failed to toggle bundled state", error);
+        toastError(toErrorMessage(error, "Could not update bundled state for that item."));
     }
-    void toggleEntryBundled(button.dataset.path, false);
 });
 
 viewSelectionBtn.addEventListener("click", () => setView("selection"));
@@ -1521,24 +1607,46 @@ selectionViewEl.addEventListener("drop", async (event) => {
     const files = Array.from(event.dataTransfer.files ?? []);
     if (files.length === 0) return;
 
-    const entries = await Promise.all(
-        files.map(async (file) => {
-            const absPath = file.path;
-            const stat = await window.api.statPath(absPath);
-            if (stat?.isDirectory) return { kind: "folder", absPath };
-            if (stat?.isFile) return { kind: "file", absPath };
-            return null;
-        })
-    );
+    try {
+        const entries = await Promise.all(
+            files.map(async (file) => {
+                const absPath = file.path;
+                const stat = await window.api.statPath(absPath);
+                if (stat?.isDirectory) return { kind: "folder", absPath };
+                if (stat?.isFile) return { kind: "file", absPath };
+                return null;
+            })
+        );
 
-    void addEntries(entries.filter(Boolean));
+        const validEntries = entries.filter(Boolean);
+        if (validEntries.length === 0) {
+            toastError("No valid files or folders were dropped.");
+            return;
+        }
+
+        const { addedCount } = await addEntries(validEntries);
+        toast(`Added ${addedCount} item${addedCount === 1 ? "" : "s"} to selection.`);
+    } catch (error) {
+        console.error("Failed to add dropped files", error);
+        toastError(toErrorMessage(error, "Could not add dropped content to selection."));
+    }
 });
 
 // Bundling is live; no manual bundle action is required.
 
 document.getElementById("copy").addEventListener("click", async () => {
-    await window.api.copyToClipboard(outputEl.value);
-    toast("Copied to clipboard");
+    try {
+        if (!outputEl.value.trim()) {
+            toastError("Nothing to copy yet.");
+            return;
+        }
+
+        await window.api.copyToClipboard(outputEl.value);
+        toast("Copied output to clipboard.");
+    } catch (error) {
+        console.error("Failed to copy output", error);
+        toastError(toErrorMessage(error, "Could not copy output to clipboard."));
+    }
 });
 
 detailsOverlay.addEventListener("click", (event) => {
