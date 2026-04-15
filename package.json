@@ -30,7 +30,6 @@
     "files": [
       "**/*",
       "!dist/**",
-      "!node_modules/**",
       "!.git/**"
     ],
     "publish": [

@@ -8,6 +8,7 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 ### Added
 ### Changed
 ### Fixed
+- Fixed packaged app builds to include runtime dependencies from `node_modules`, resolving startup failures such as missing `ignore` in production releases.
 
 ## [0.3.0] - 2026-04-15
 ### Added

@@ -2,53 +2,35 @@
 
 # File Bundler
 
-File Bundler is a desktop app that combines selected files and folders into one copyable text block for AI prompts, code reviews, handoffs, and archiving.
+Bundle your entire codebase into a clean AI-ready prompt in seconds.
+
+Built for developers working with AI-assisted workflows:
+- ChatGPT / Claude workflows
+- Code reviews
+- Sharing projects with teammates
+- Debugging and handoffs
 
 Current version: **0.3.0**
 
-## Output Format
+## Demo
 
-```
-path/to/file.ext:
-<file contents>
-
---
-
-path/to/other_file.ext:
-<file contents>
-```
-
-## Download
-
-Go to the **Releases** page on GitHub and download the installer for your operating system:
-
-- **macOS** — `.dmg`
-- **Windows** — `.exe`
-
-No Node.js or terminal is needed once installed.
-
-macOS note: the app is unsigned. If blocked by Gatekeeper:
-
-1. Try opening the app once.
-2. Open `System Settings -> Privacy & Security`.
-3. Scroll to the security warning for File Bundler.
-4. Click `Open Anyway`.
+![Demo](./file-bundler-demo.gif)
 
 ## Key Features
 
-- Mixed content picking (files and folders together)
-- Live rebundling (no manual Bundle button)
-- Selection tree with nested folders and grouped views
-- Remove/Re-add controls that keep excluded items visible
-- Auto-collapse and focus behavior when adding content
-- `Select content`, `Add content`, and `Clear selection` actions
-- Confirmation dialogs for replace/clear actions
-- Optional `Don't ask me again` for replace-selection prompt
-- Toast feedback for success/error across core user actions
-- Stats chips with hover previews and details modal (Included/Skipped)
-- `Base names` toggle with live rebundle
-- Copy output and copy details list actions
-- Filtering/skip rules for ignored folders, binary/large files, dotfiles, and `.gitignore`
+- Bundle entire folders and files into one structured, copyable output
+- Smart filtering (automatically ignores binaries, large and irrelevant files, .gitignore, etc.)
+- Visually see the files and folders selected for bundling in a nested file tree
+- Easily remove or re-add files to the bundle
+- See which files were included or skipped from the selection
+- One-click copy to clipboard
+- Clean, readable output designed for AI tools
+
+## Why File Bundler?
+
+Often the AI struggles to interpret uploaded files, leading to incomplete or incorrect results. A common workaround is manually copy-pasting files into prompts — but this is **painfully slow**, messy, and error-prone.
+
+File Bundler solves this by letting you select your project and instantly generate a clean, structured prompt — ready to paste into ChatGPT or share with others.
 
 ## How to Use
 
@@ -57,6 +39,36 @@ macOS note: the app is unsigned. If blocked by Gatekeeper:
 3. Use `Remove` or `Re-add` to control which files are bundled.
 4. Optionally toggle `Base names` for shorter or full directory path as file names in the output.
 5. Click `Copy` to copy the full bundled output.
+
+## Output Format
+
+```
+path/to/file.ext:
+<file contents>
+
+---
+
+path/to/other_file.ext:
+<file contents>
+```
+
+## Download
+
+Download the latest version from the **Releases** page:
+
+👉 **[Download File Bundler](../../releases)**
+
+- **macOS** — `.dmg`
+- **Windows** — `.exe`
+
+No setup required — just install and run.
+
+***macOS note**: the app is unsigned. If blocked by* Gatekeeper:
+
+1. Try opening the app once.
+2. Open `System Settings -> Privacy & Security`.
+3. Scroll to the security warning for File Bundler.
+4. Click `Open Anyway`.
 
 ## Development
 
