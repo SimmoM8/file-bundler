@@ -32,6 +32,12 @@ const excludedAbsPaths = new Set();
 const collapsedFolders = new Set();
 const knownFolderPaths = new Set();
 const animatingFolders = new Set();
+const groupCompleteByPath = new Map();
+const userExpandedFolders = new Set();
+const knownTopGroupPaths = new Set();
+const pendingAutoExpandTargets = new Set();
+const knownDisplayFolderPaths = new Set();
+const gitRootBySelectionPath = new Map();
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -47,7 +53,13 @@ setView("selection");
 statsEl.addEventListener("click", (event) => {
     if (!statsEl.dataset.hasDetails) return;
     if (event.target.closest("button")) return;
-    openDetails();
+    const statChip = event.target.closest(".statChip");
+    const preferredTab = statChip?.dataset.stat === "skipped"
+        ? "skipped"
+        : statChip?.dataset.stat === "included"
+            ? "included"
+            : activeTab;
+    openDetails(preferredTab);
 });
 
 outputEl.addEventListener("scroll", () => {
@@ -141,12 +153,11 @@ function pruneExcludedPaths() {
         return;
     }
 
-    const selectedRoots = selectionEntries
-        .filter((entry) => entry.kind === "folder")
-        .map((entry) => entry.absPath);
-
     for (const excludedPath of Array.from(excludedAbsPaths)) {
-        const keep = selectedRoots.some((rootPath) => isSameOrDescendantPath(excludedPath, rootPath));
+        const keep = selectionEntries.some((entry) => (
+            isSameOrDescendantPath(excludedPath, entry.absPath)
+            || isSameOrDescendantPath(entry.absPath, excludedPath)
+        ));
         if (!keep) excludedAbsPaths.delete(excludedPath);
     }
 }
@@ -158,6 +169,7 @@ async function refreshSelectionHierarchy() {
         selectionHierarchy = [];
         knownFolderPaths.clear();
         collapsedFolders.clear();
+        groupCompleteByPath.clear();
         renderSelection();
         return;
     }
@@ -180,10 +192,134 @@ async function refreshSelectionHierarchy() {
                 .filter((entry) => entry.kind === "folder")
                 .map((entry) => entry.absPath)
         );
+        await refreshSelectionGitRoots();
         syncFolderCollapseDefaults(selectionHierarchy, selectedFolderRoots);
+        await updateGroupCompleteness(selectionHierarchy);
         renderSelection();
     } catch (error) {
         console.error("Failed to load selection hierarchy", error);
+    }
+}
+
+async function refreshSelectionGitRoots() {
+    const activeSelectionPaths = new Set(selectionEntries.map((entry) => normalizePath(entry.absPath)));
+
+    for (const knownPath of Array.from(gitRootBySelectionPath.keys())) {
+        if (!activeSelectionPaths.has(knownPath)) {
+            gitRootBySelectionPath.delete(knownPath);
+        }
+    }
+
+    const lookups = [];
+    for (const entry of selectionEntries) {
+        const entryPath = normalizePath(entry.absPath);
+        if (gitRootBySelectionPath.has(entryPath)) continue;
+
+        lookups.push((async () => {
+            try {
+                const gitRoot = await window.api.findGitRoot(entry.absPath);
+                gitRootBySelectionPath.set(entryPath, gitRoot ? normalizePath(gitRoot) : null);
+            } catch {
+                gitRootBySelectionPath.set(entryPath, null);
+            }
+        })());
+    }
+
+    if (lookups.length > 0) {
+        await Promise.all(lookups);
+    }
+}
+
+function getGitRootForDisplayPath(absPath) {
+    const target = normalizePath(absPath);
+    let bestMatchLen = -1;
+    let resolvedRoot = null;
+
+    for (const [selectionPath, gitRoot] of gitRootBySelectionPath.entries()) {
+        const matchesPath = isSameOrDescendantPath(target, selectionPath) || isSameOrDescendantPath(selectionPath, target);
+        if (!matchesPath) continue;
+        if (selectionPath.length <= bestMatchLen) continue;
+        bestMatchLen = selectionPath.length;
+        resolvedRoot = gitRoot;
+    }
+
+    return resolvedRoot;
+}
+
+async function updateGroupCompleteness(hierarchyNodes) {
+    groupCompleteByPath.clear();
+    const displayRoots = buildDisplayRoots(hierarchyNodes);
+    const groups = [];
+
+    const collectSelectedFilePaths = (nodes, ancestorExcluded = false, out = new Set()) => {
+        for (const node of nodes ?? []) {
+            const directExcluded = node.excluded === true;
+            const effectiveExcluded = ancestorExcluded || directExcluded;
+            if (node.kind === "file" && !effectiveExcluded) {
+                out.add(node.absPath);
+            }
+            collectSelectedFilePaths(node.children, effectiveExcluded, out);
+        }
+        return out;
+    };
+
+    const collectAllFilePaths = (nodes, out = new Set()) => {
+        for (const node of nodes ?? []) {
+            if (node.kind === "file") out.add(node.absPath);
+            collectAllFilePaths(node.children, out);
+        }
+        return out;
+    };
+
+    const selectedFilePaths = collectSelectedFilePaths(hierarchyNodes);
+
+    const collectGroups = (nodes) => {
+        for (const node of nodes) {
+            if (node.kind === "group") groups.push(node);
+            if (node.children?.length) collectGroups(node.children);
+        }
+    };
+
+    collectGroups(displayRoots);
+
+    for (const group of groups) {
+        try {
+            const res = await window.api.getSelectionHierarchy(
+                [{ kind: "folder", absPath: group.absPath }],
+                { excludedPaths: Array.from(excludedAbsPaths) }
+            );
+            const root = Array.isArray(res?.nodes)
+                ? res.nodes.find((node) => node.kind === "folder" && node.absPath === group.absPath) || res.nodes[0]
+                : null;
+
+            const expectedChildren = root?.children ?? [];
+            if (expectedChildren.length === 0) {
+                groupCompleteByPath.set(group.absPath, false);
+                continue;
+            }
+
+            const complete = expectedChildren.every((child) => {
+                if (child.kind === "file") {
+                    return selectedFilePaths.has(child.absPath);
+                }
+
+                if (child.kind === "folder") {
+                    const expectedFiles = collectAllFilePaths(child.children);
+                    if (expectedFiles.size === 0) return false;
+
+                    for (const filePath of expectedFiles) {
+                        if (!selectedFilePaths.has(filePath)) return false;
+                    }
+                    return true;
+                }
+
+                return false;
+            });
+
+            groupCompleteByPath.set(group.absPath, complete);
+        } catch {
+            groupCompleteByPath.set(group.absPath, false);
+        }
     }
 }
 
@@ -217,9 +353,87 @@ function syncFolderCollapseDefaults(nodes, selectedFolderRoots) {
     }
 }
 
+function applyGroupedCollapseDefaults(displayRoots) {
+    const topGroups = displayRoots.filter((node) => node.kind === "group");
+    const currentTopGroupPaths = new Set(topGroups.map((node) => node.absPath));
+
+    for (const group of topGroups) {
+        if (!knownTopGroupPaths.has(group.absPath)) {
+            knownTopGroupPaths.add(group.absPath);
+            collapsedFolders.delete(group.absPath);
+        }
+        if (!knownDisplayFolderPaths.has(group.absPath)) {
+            knownDisplayFolderPaths.add(group.absPath);
+        }
+
+        if (userExpandedFolders.has(group.absPath)) {
+            collapsedFolders.delete(group.absPath);
+        }
+
+        const walkChildren = (children) => {
+            for (const child of children ?? []) {
+                const isFolderLike = child.kind === "folder" || child.kind === "group";
+                if (isFolderLike) {
+                    if (!knownDisplayFolderPaths.has(child.absPath)) {
+                        knownDisplayFolderPaths.add(child.absPath);
+                        if (userExpandedFolders.has(child.absPath)) {
+                            collapsedFolders.delete(child.absPath);
+                        } else {
+                            collapsedFolders.add(child.absPath);
+                        }
+                    } else if (userExpandedFolders.has(child.absPath)) {
+                        collapsedFolders.delete(child.absPath);
+                    }
+                }
+                walkChildren(child.children);
+            }
+        };
+
+        walkChildren(group.children);
+    }
+
+    for (const knownPath of Array.from(knownTopGroupPaths)) {
+        if (!currentTopGroupPaths.has(knownPath)) {
+            knownTopGroupPaths.delete(knownPath);
+        }
+    }
+
+    const currentDisplayFolderPaths = new Set();
+    const collectDisplayFolders = (nodes) => {
+        for (const node of nodes ?? []) {
+            if (node.kind === "folder" || node.kind === "group") {
+                currentDisplayFolderPaths.add(node.absPath);
+            }
+            collectDisplayFolders(node.children);
+        }
+    };
+    collectDisplayFolders(displayRoots);
+
+    for (const knownPath of Array.from(knownDisplayFolderPaths)) {
+        if (!currentDisplayFolderPaths.has(knownPath)) {
+            knownDisplayFolderPaths.delete(knownPath);
+            userExpandedFolders.delete(knownPath);
+            collapsedFolders.delete(knownPath);
+        }
+    }
+}
+
 async function addEntries(newEntries) {
     const next = new Map(selectionEntries.map((entry) => [`${entry.kind}:${entry.absPath}`, entry]));
+    const newlyAddedPaths = new Set();
     for (const entry of newEntries) {
+        if (entry.kind === "folder") {
+            for (const [key, existing] of Array.from(next.entries())) {
+                if (normalizePath(existing.absPath) === normalizePath(entry.absPath)) continue;
+                if (isSameOrDescendantPath(existing.absPath, entry.absPath)) {
+                    next.delete(key);
+                }
+            }
+        }
+        const entryKey = `${entry.kind}:${entry.absPath}`;
+        if (!next.has(entryKey)) {
+            newlyAddedPaths.add(entry.absPath);
+        }
         next.set(`${entry.kind}:${entry.absPath}`, entry);
         excludedAbsPaths.delete(entry.absPath);
     }
@@ -229,6 +443,9 @@ async function addEntries(newEntries) {
     outputEl.value = "";
     targetEl.textContent = buildTargetLabel();
     renderStats(null);
+    for (const absPath of newlyAddedPaths) {
+        pendingAutoExpandTargets.add(absPath);
+    }
     await refreshSelectionHierarchy();
     await rebundleSelectionLive();
 }
@@ -239,6 +456,12 @@ function resetSelectionState() {
     excludedAbsPaths.clear();
     collapsedFolders.clear();
     knownFolderPaths.clear();
+    groupCompleteByPath.clear();
+    userExpandedFolders.clear();
+    knownTopGroupPaths.clear();
+    pendingAutoExpandTargets.clear();
+    knownDisplayFolderPaths.clear();
+    gitRootBySelectionPath.clear();
     lastBundleMeta = null;
     outputEl.value = "";
     targetEl.textContent = buildTargetLabel();
@@ -313,6 +536,204 @@ function getParentPath(absPath) {
     return normalized.slice(0, idx);
 }
 
+function getBaseName(absPath) {
+    const normalized = String(absPath).replace(/\\/g, "/");
+    const idx = normalized.lastIndexOf("/");
+    if (idx < 0) return normalized;
+    return normalized.slice(idx + 1) || normalized;
+}
+
+function buildDisplayRoots(nodes) {
+    const createGroupNode = (groupPath) => {
+        const completeness = groupCompleteByPath.get(groupPath);
+        return {
+            kind: "group",
+            name: getBaseName(groupPath),
+            absPath: groupPath,
+            parentPath: getParentPath(groupPath),
+            excluded: excludedAbsPaths.has(groupPath),
+            partial: completeness === false,
+            children: [],
+        };
+    };
+
+    const sortTree = (items) => {
+        items.sort((a, b) => a.name.localeCompare(b.name));
+        for (const item of items) {
+            if (item.children?.length) sortTree(item.children);
+        }
+    };
+
+    const signature = (list) => list
+        .map((node) => `${node.kind}:${node.absPath}`)
+        .sort()
+        .join("|");
+
+    const groupOnce = (list) => {
+        const groupedByParent = new Map();
+
+        const canGroupUnderParent = (parentPath, siblings) => {
+            for (const sibling of siblings) {
+                const gitRoot = getGitRootForDisplayPath(sibling.absPath);
+                if (gitRoot && !isSameOrDescendantPath(parentPath, gitRoot)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        for (const node of list) {
+            const parentPath = getParentPath(node.absPath);
+            if (!groupedByParent.has(parentPath)) groupedByParent.set(parentPath, []);
+            groupedByParent.get(parentPath).push(node);
+        }
+
+        const next = [];
+        let groupedAny = false;
+
+        for (const [parentPath, siblings] of groupedByParent.entries()) {
+            if (siblings.length <= 1) {
+                next.push(...siblings);
+                continue;
+            }
+
+            if (!canGroupUnderParent(parentPath, siblings)) {
+                next.push(...siblings);
+                continue;
+            }
+
+            groupedAny = true;
+            const groupNode = createGroupNode(parentPath);
+            groupNode.parentPath = parentPath;
+            groupNode.children = siblings;
+            next.push(groupNode);
+        }
+
+        return { next, groupedAny };
+    };
+
+    const bridgeByAncestor = (list) => {
+        const buildNestedBridgeGroup = (ancestor, members) => {
+            const root = createGroupNode(ancestor);
+            root.parentPath = ancestor;
+
+            const childKey = (child) => `${child.kind}:${child.absPath}`;
+            const pushUniqueChild = (container, child) => {
+                const key = childKey(child);
+                if (container.children.some((existing) => childKey(existing) === key)) return;
+                container.children.push(child);
+            };
+
+            const ensureGroupChild = (container, groupPath) => {
+                const existing = container.children.find(
+                    (child) => child.kind === "group" && child.absPath === groupPath
+                );
+                if (existing) return existing;
+                const nextGroup = createGroupNode(groupPath);
+                container.children.push(nextGroup);
+                return nextGroup;
+            };
+
+            for (const member of members) {
+                if (member.kind === "group" && member.absPath === ancestor) {
+                    for (const child of member.children ?? []) {
+                        pushUniqueChild(root, child);
+                    }
+                    continue;
+                }
+
+                const memberParent = getParentPath(member.absPath);
+                if (memberParent === ancestor) {
+                    pushUniqueChild(root, member);
+                    continue;
+                }
+
+                const relParent = memberParent.slice(ancestor.length).replace(/^\/+/, "");
+                if (!relParent) {
+                    root.children.push(member);
+                    continue;
+                }
+
+                const segments = relParent.split("/").filter(Boolean);
+                let cursor = root;
+                let accum = ancestor;
+                for (const segment of segments) {
+                    accum = `${accum}/${segment}`;
+                    cursor = ensureGroupChild(cursor, accum);
+                }
+                pushUniqueChild(cursor, member);
+            }
+
+            sortTree(root.children);
+            return root;
+        };
+
+        const candidateAncestors = new Set();
+        for (const node of list) {
+            if (node.kind !== "folder" && node.kind !== "group") continue;
+            candidateAncestors.add(getParentPath(node.absPath));
+            candidateAncestors.add(node.absPath);
+        }
+        const sortedCandidates = Array.from(candidateAncestors)
+            .sort((a, b) => b.length - a.length);
+
+        const used = new Set();
+        const bridgedGroups = [];
+
+        for (const ancestor of sortedCandidates) {
+            const members = [];
+            let hasDirectChild = false;
+
+            for (const node of list) {
+                if (used.has(node.absPath)) continue;
+                if (!isSameOrDescendantPath(node.absPath, ancestor)) continue;
+
+                const gitRoot = getGitRootForDisplayPath(node.absPath);
+                if (gitRoot && !isSameOrDescendantPath(ancestor, gitRoot)) continue;
+
+                members.push(node);
+                if (getParentPath(node.absPath) === ancestor || node.absPath === ancestor) {
+                    hasDirectChild = true;
+                }
+            }
+
+            if (members.length < 2 || !hasDirectChild) continue;
+
+            for (const node of members) {
+                used.add(node.absPath);
+            }
+
+            bridgedGroups.push(buildNestedBridgeGroup(ancestor, members));
+        }
+
+        const remainder = list.filter((node) => !used.has(node.absPath));
+        return [...remainder, ...bridgedGroups];
+    };
+
+    let current = [...nodes];
+    let previousSig = "";
+
+    while (true) {
+        const { next, groupedAny } = groupOnce(current);
+        const nextSig = signature(next);
+        current = next;
+
+        if (!groupedAny || nextSig === previousSig) break;
+        previousSig = nextSig;
+    }
+
+    let bridgePrevSig = "";
+    while (true) {
+        const bridged = bridgeByAncestor(current);
+        const bridgedSig = signature(bridged);
+        current = bridged;
+        if (bridgedSig === bridgePrevSig) break;
+        bridgePrevSig = bridgedSig;
+    }
+
+    return current.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function rebundleSelectionLive() {
     const token = ++rebundleToken;
 
@@ -343,6 +764,52 @@ async function rebundleSelectionLive() {
 }
 
 function renderSelection() {
+    const displayRoots = buildDisplayRoots(selectionHierarchy);
+    applyGroupedCollapseDefaults(displayRoots);
+
+    if (pendingAutoExpandTargets.size > 0) {
+        const keepExpandedPaths = new Set();
+
+        const expandIfContainsNewTarget = (node) => {
+            let hasTarget = pendingAutoExpandTargets.has(node.absPath);
+
+            for (const child of node.children ?? []) {
+                if (expandIfContainsNewTarget(child)) {
+                    hasTarget = true;
+                }
+            }
+
+            const isFolderLike = node.kind === "folder" || node.kind === "group";
+            if (isFolderLike && hasTarget) {
+                keepExpandedPaths.add(node.absPath);
+            }
+
+            return hasTarget;
+        };
+
+        for (const node of displayRoots) {
+            expandIfContainsNewTarget(node);
+        }
+
+        const applyFocusCollapse = (nodes) => {
+            for (const node of nodes ?? []) {
+                const isFolderLike = node.kind === "folder" || node.kind === "group";
+                if (isFolderLike) {
+                    if (keepExpandedPaths.has(node.absPath)) {
+                        collapsedFolders.delete(node.absPath);
+                    } else {
+                        collapsedFolders.add(node.absPath);
+                        userExpandedFolders.delete(node.absPath);
+                    }
+                }
+                applyFocusCollapse(node.children);
+            }
+        };
+
+        applyFocusCollapse(displayRoots);
+        pendingAutoExpandTargets.clear();
+    }
+
     const counts = { folders: 0, files: 0 };
 
     const countNodes = (node) => {
@@ -351,7 +818,7 @@ function renderSelection() {
         for (const child of node.children ?? []) countNodes(child);
     };
 
-    for (const node of selectionHierarchy) countNodes(node);
+    for (const node of displayRoots) countNodes(node);
     const total = counts.folders + counts.files;
     addContentBtn.classList.toggle("hidden", selectionEntries.length === 0);
 
@@ -361,7 +828,8 @@ function renderSelection() {
     const frag = document.createDocumentFragment();
 
     const renderNode = (node, depth, ancestorExcluded = false) => {
-        const isFolder = node.kind === "folder";
+        const isGroup = node.kind === "group";
+        const isFolder = node.kind === "folder" || isGroup;
         const hasChildren = Boolean(node.children?.length);
         const collapsed = isFolder && collapsedFolders.has(node.absPath);
         const directExcluded = node.excluded === true;
@@ -392,14 +860,32 @@ function renderSelection() {
         name.className = "selectionTreeName";
         name.textContent = node.name;
 
+        const nameLine = document.createElement("div");
+        nameLine.className = "selectionTreeNameLine";
+        nameLine.appendChild(name);
+
         const textWrap = document.createElement("div");
         textWrap.className = "selectionTreeText";
-        textWrap.appendChild(name);
+        textWrap.appendChild(nameLine);
 
-        if (depth === 0) {
+        if (node.partial) {
+            const flag = document.createElement("span");
+            flag.className = "selectionTreeFlag";
+            flag.textContent = "Partial";
+            nameLine.appendChild(flag);
+        }
+
+        if (depth === 0 && !isGroup) {
             const meta = document.createElement("div");
             meta.className = "selectionTreeMeta";
             meta.textContent = `from \"${getParentPath(node.absPath)}\"`;
+            textWrap.appendChild(meta);
+        }
+
+        if (isGroup && depth === 0) {
+            const meta = document.createElement("div");
+            meta.className = "selectionTreeMeta";
+            meta.textContent = `from \"${getParentPath(node.parentPath)}\"`;
             textWrap.appendChild(meta);
         }
 
@@ -443,7 +929,7 @@ function renderSelection() {
         return group;
     };
 
-    for (const node of selectionHierarchy) {
+    for (const node of displayRoots) {
         frag.appendChild(renderNode(node, 0));
     }
 
@@ -468,6 +954,7 @@ async function animateFolderToggle(path) {
 
         if (isCollapsed) {
             collapsedFolders.delete(path);
+            userExpandedFolders.add(path);
             renderSelection();
 
             const expandedToggle = findFolderToggle(path);
@@ -525,6 +1012,7 @@ async function animateFolderToggle(path) {
         });
 
         collapsedFolders.add(path);
+        userExpandedFolders.delete(path);
         renderSelection();
     } finally {
         animatingFolders.delete(path);
@@ -696,11 +1184,11 @@ function setActiveTab(tab) {
     renderDetailsList();
 }
 
-function openDetails() {
+function openDetails(preferredTab = activeTab) {
     if (!lastBundleMeta) return;
     detailsOverlay.classList.remove("hidden");
     detailsOverlay.setAttribute("aria-hidden", "false");
-    setActiveTab(activeTab || "included");
+    setActiveTab(preferredTab || "included");
     detailsSearchEl.focus();
     detailsSearchEl.select();
 }

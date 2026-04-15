@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("api", {
     getSelectionHierarchy: (selectionEntries, options) => ipcRenderer.invoke("getSelectionHierarchy", selectionEntries, options),
     copyToClipboard: (text) => ipcRenderer.invoke("copyToClipboard", text),
     statPath: (absPath) => ipcRenderer.invoke("statPath", absPath),
+    findGitRoot: (absPath) => ipcRenderer.invoke("findGitRoot", absPath),
 });

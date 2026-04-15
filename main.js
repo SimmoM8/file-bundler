@@ -58,3 +58,31 @@ ipcMain.handle("statPath", async (_evt, absPath) => {
         return { isFile: false, isDirectory: false };
     }
 });
+
+ipcMain.handle("findGitRoot", async (_evt, absPath) => {
+    try {
+        let current = path.resolve(absPath);
+        const initialStat = await fs.stat(current);
+        if (!initialStat.isDirectory()) {
+            current = path.dirname(current);
+        }
+
+        while (true) {
+            const gitMarker = path.join(current, ".git");
+            try {
+                await fs.stat(gitMarker);
+                return current;
+            } catch {
+                // Keep walking upward.
+            }
+
+            const parent = path.dirname(current);
+            if (parent === current) break;
+            current = parent;
+        }
+    } catch {
+        // Ignore and return null.
+    }
+
+    return null;
+});

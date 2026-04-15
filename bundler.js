@@ -365,6 +365,7 @@ function buildExcludedPathSet(excludedPaths) {
 async function getFileSkipReason(absPath) {
     const base = path.basename(absPath).toLowerCase();
     const ext = path.extname(absPath).toLowerCase();
+    if (base.startsWith(".")) return "ignored extension";
     if (IGNORE_EXTS.has(ext) || IGNORE_EXTS.has(base)) return "ignored extension";
 
     let stat;
