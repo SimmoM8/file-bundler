@@ -18,6 +18,7 @@ const clearSelectionBtn = document.getElementById("clearSelection");
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
+const appMetaEl = document.getElementById("appMeta");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -51,6 +52,7 @@ renderStats(null);
 targetEl.textContent = buildTargetLabel();
 renderSelection();
 setView("selection");
+void renderAppMeta();
 
 statsEl.addEventListener("click", (event) => {
     if (!statsEl.dataset.hasDetails) return;
@@ -79,6 +81,26 @@ function toast(msg) {
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
+}
+
+async function renderAppMeta() {
+    if (!appMetaEl) return;
+
+    const currentYear = new Date().getFullYear();
+    let version = "";
+    let copyright = `Copyright \u00A9 ${currentYear}`;
+
+    try {
+        const info = await window.api.getAppInfo();
+        if (info?.version) version = String(info.version);
+        if (info?.copyright) {
+            copyright = String(info.copyright).replace("Copyright \u00A9", `Copyright \u00A9 ${currentYear}`);
+        }
+    } catch {
+        // Keep fallback metadata.
+    }
+
+    appMetaEl.textContent = version ? `${copyright} • v${version}` : copyright;
 }
 
 function getSkipReplaceConfirmPreference() {

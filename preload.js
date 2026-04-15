@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld("api", {
     copyToClipboard: (text) => ipcRenderer.invoke("copyToClipboard", text),
     statPath: (absPath) => ipcRenderer.invoke("statPath", absPath),
     findGitRoot: (absPath) => ipcRenderer.invoke("findGitRoot", absPath),
+    getAppInfo: () => ipcRenderer.invoke("getAppInfo"),
 });

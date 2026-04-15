@@ -86,3 +86,10 @@ ipcMain.handle("findGitRoot", async (_evt, absPath) => {
 
     return null;
 });
+
+ipcMain.handle("getAppInfo", async () => {
+    return {
+        version: app.getVersion(),
+        copyright: "Copyright \u00A9 Benjamin Simmons",
+    };
+});

@@ -485,6 +485,16 @@ body {
     z-index: 1;
 }
 
+.appMeta {
+    align-self: flex-end;
+    margin: 0 2px 2px 0;
+    font-size: 10px;
+    letter-spacing: .04em;
+    color: rgba(255, 255, 255, .42);
+    pointer-events: none;
+    user-select: none;
+}
+
 .panel-switch {
     display: flex;
     justify-content: flex-end;
