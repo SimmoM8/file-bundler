@@ -2,9 +2,11 @@
 
 # File Bundler
 
-File Bundler is a small desktop app that bundles the contents of a folder or selected files into one copyable block of text.
+File Bundler is a desktop app that combines selected files and folders into one copyable text block for AI prompts, code reviews, handoffs, and archiving.
 
-The output format looks like this:
+Current version: **0.3.0**
+
+## Output Format
 
 ```
 path/to/file.ext:
@@ -16,10 +18,6 @@ path/to/other_file.ext:
 <file contents>
 ```
 
-It’s designed for sharing project context with ChatGPT, code reviews, documentation, or archiving.
-
----
-
 ## Download
 
 Go to the **Releases** page on GitHub and download the installer for your operating system:
@@ -27,45 +25,43 @@ Go to the **Releases** page on GitHub and download the installer for your operat
 - **macOS** — `.dmg`
 - **Windows** — `.exe`
 
-No terminal or Node.js required to use the app once installed.
+No Node.js or terminal is needed once installed.
 
-macOS note:
-The app is unsigned. If macOS blocks it:
-	1.	Try to open the app once (let it fail)
-	2.	Go to:
-System Settings → Privacy & Security
-	3.	Scroll down
-	4.	You’ll see:
-“File Bundler was blocked…”
-	5.	Click Open Anyway
+macOS note: the app is unsigned. If blocked by Gatekeeper:
 
----
+1. Try opening the app once.
+2. Open `System Settings -> Privacy & Security`.
+3. Scroll to the security warning for File Bundler.
+4. Click `Open Anyway`.
 
-## Features
+## Key Features
 
-- Select a **folder** or **multiple files**
-- Output preview before copying
-- One‑click **Copy to Clipboard**
-- Option to use **base file names** or **relative paths**
-- Skips common junk folders (`.git`, `node_modules`, `dist`, etc.)
-- Skips obvious binary files (images, archives, media, fonts)
-- Safety limits to avoid freezing on very large projects
-
----
+- Mixed content picking (files and folders together)
+- Live rebundling (no manual Bundle button)
+- Selection tree with nested folders and grouped views
+- Remove/Re-add controls that keep excluded items visible
+- Auto-collapse and focus behavior when adding content
+- `Select content`, `Add content`, and `Clear selection` actions
+- Confirmation dialogs for replace/clear actions
+- Optional `Don't ask me again` for replace-selection prompt
+- Toast feedback for success/error across core user actions
+- Stats chips with hover previews and details modal (Included/Skipped)
+- `Base names` toggle with live rebundle
+- Copy output and copy details list actions
+- Filtering/skip rules for ignored folders, binary/large files, dotfiles, and `.gitignore`
 
 ## How to Use
 
-1. Open File Bundler
-2. Click **Pick Folder** or **Pick Files**
-3. Click **Bundle**
-4. Review the output
-5. Click **Copy** and paste wherever you need it
-
----
+1. Click `Select content` to choose files/folders.
+2. Review the selection tree and output (bundling runs automatically).
+3. Use `Remove` or `Re-add` to control which files are bundled.
+4. Optionally toggle `Base names` for shorter or full directory path as file names in the output.
+5. Click `Copy` to copy the full bundled output.
 
 ## Development
 
 Requirements:
+
 - Node.js (LTS)
 - npm
 
@@ -75,8 +71,6 @@ Install dependencies and run the app in development mode:
 npm install
 npm start
 ```
-
----
 
 ## Build / Package
 
@@ -88,20 +82,8 @@ To create installers locally:
 npm run dist
 ```
 
-Build artifacts will be created in the `dist/` directory.  
-These files are **not committed** to the repository and are distributed via GitHub Releases.
-
----
-
-## Roadmap
-
-- Configurable ignore rules
-- Adjustable file size limits
-- Progress indicator for large projects
-- VS Code extension built on top of the same bundling core
-
----
+Artifacts are created in `dist/` and distributed via GitHub Releases.
 
 ## License
 
-MIT — see the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
