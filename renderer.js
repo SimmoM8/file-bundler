@@ -673,6 +673,10 @@ function summarizeSelection() {
     return `Selected: ${counts.folders} folder${counts.folders === 1 ? "" : "s"}, ${counts.files} file${counts.files === 1 ? "" : "s"}`;
 }
 
+function fileWord(count) {
+    return count === 1 ? "file" : "files";
+}
+
 function renderBundleChangeSignal() {
     if (!bundleChangeSignalEl) return;
 
@@ -683,13 +687,16 @@ function renderBundleChangeSignal() {
 
     if (!hasWarning) {
         bundleChangeSignalEl.textContent = "Up to date";
+        bundleChangeSignalEl.setAttribute("aria-label", "Bundle status up to date.");
         bundleChangeSignalEl.removeAttribute("title");
         return;
     }
 
-    const noun = changedCount === 1 ? "file" : "files";
+    const noun = fileWord(changedCount);
+    const warningText = `${changedCount} selected ${noun} changed since last bundle. Rebundle recommended.`;
     bundleChangeSignalEl.textContent = `⚠ ${changedCount} ${noun} changed`;
-    bundleChangeSignalEl.title = `${changedCount} selected ${noun} changed since last bundle. Rebundle recommended.`;
+    bundleChangeSignalEl.setAttribute("aria-label", warningText);
+    bundleChangeSignalEl.title = warningText;
 }
 
 function buildTargetLabel() {
@@ -845,8 +852,9 @@ async function detectExternalFileChanges() {
         }
 
         if (newFlagCount > 0) {
+            const verb = newFlagCount === 1 ? "has" : "have";
             renderSelection();
-            toast(`${newFlagCount} selected file${newFlagCount === 1 ? " has" : "s have"} changed externally. Rebundle recommended.`);
+            toast(`${newFlagCount} selected ${fileWord(newFlagCount)} ${verb} changed externally. Rebundle recommended.`);
         }
     } catch (error) {
         console.error("Failed to detect external file changes", error);
