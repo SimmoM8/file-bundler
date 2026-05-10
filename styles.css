@@ -267,10 +267,46 @@ body {
     text-align: right;
 }
 
-.bundleChangeSignal {
+.bundleStatusMeta .meta-label {
     display: inline-flex;
     align-items: center;
     gap: 7px;
+}
+
+.bundleStatusMeta .meta-label::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(194, 208, 232, .8);
+    border: 1px solid rgba(255, 255, 255, .24);
+    box-shadow:
+        0 0 0 1px rgba(16, 28, 48, .35),
+        0 0 8px rgba(194, 208, 232, .28);
+    flex: 0 0 auto;
+}
+
+.bundleStatusMeta.isClear .meta-label::after {
+    background: rgba(126, 231, 174, .95);
+    border-color: rgba(190, 255, 223, .5);
+    box-shadow:
+        0 0 0 1px rgba(26, 73, 54, .45),
+        0 0 10px rgba(126, 231, 174, .42),
+        0 0 18px rgba(126, 231, 174, .22);
+}
+
+.bundleStatusMeta.isWarning .meta-label::after {
+    background: rgba(244, 188, 128, .95);
+    border-color: rgba(255, 219, 179, .48);
+    box-shadow:
+        0 0 0 1px rgba(74, 47, 19, .45),
+        0 0 10px rgba(244, 188, 128, .35),
+        0 0 18px rgba(244, 188, 128, .2);
+}
+
+.bundleChangeSignal {
+    display: inline-flex;
+    align-items: center;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -280,13 +316,7 @@ body {
 }
 
 .bundleChangeSignal::before {
-    content: "";
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: currentColor;
-    opacity: .72;
-    flex: 0 0 auto;
+    content: none;
 }
 
 .bundleChangeSignal.isClear {

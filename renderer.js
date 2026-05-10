@@ -20,6 +20,7 @@ const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
 const appMetaEl = document.getElementById("appMeta");
 const bundleChangeSignalEl = document.getElementById("bundleChangeSignal");
+const bundleStatusMetaEl = document.querySelector(".bundleStatusMeta");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -682,6 +683,10 @@ function renderBundleChangeSignal() {
 
     const changedCount = externallyChangedPaths.size;
     const hasWarning = changedCount > 0;
+    if (bundleStatusMetaEl) {
+        bundleStatusMetaEl.classList.toggle("isWarning", hasWarning);
+        bundleStatusMetaEl.classList.toggle("isClear", !hasWarning);
+    }
     bundleChangeSignalEl.classList.toggle("isWarning", hasWarning);
     bundleChangeSignalEl.classList.toggle("isClear", !hasWarning);
 
