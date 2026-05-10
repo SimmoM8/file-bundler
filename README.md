@@ -22,6 +22,7 @@ Current version: **0.3.1**
 - Smart filtering (automatically ignores binaries, large and irrelevant files, .gitignore, etc.)
 - Visually see the files and folders selected for bundling in a nested file tree
 - Easily remove or re-add files to the bundle
+- Detect externally changed selected files and flag them for rebundling
 - See which files were included or skipped from the selection
 - One-click copy to clipboard
 - Clean, readable output designed for AI tools

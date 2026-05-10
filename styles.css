@@ -233,10 +233,9 @@ body {
 }
 
 .panel-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 14px;
-    justify-content: space-between;
-    flex-wrap: wrap;
     padding: 10px 10px 0 10px;
     position: relative;
     z-index: 3;
@@ -256,6 +255,74 @@ body {
     max-width: 65ch;
     word-break: break-word;
     opacity: .9;
+}
+
+.statsMeta {
+    justify-self: center;
+    text-align: center;
+}
+
+.bundleStatusMeta {
+    justify-self: end;
+    text-align: right;
+}
+
+.bundleStatusMeta .meta-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.bundleStatusMeta .meta-label::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(194, 208, 232, .8);
+    border: 1px solid rgba(255, 255, 255, .24);
+    box-shadow:
+        0 0 0 1px rgba(16, 28, 48, .35),
+        0 0 8px rgba(194, 208, 232, .28);
+    flex: 0 0 auto;
+}
+
+.bundleStatusMeta.isClear .meta-label::after {
+    background: rgba(126, 231, 174, .95);
+    border-color: rgba(190, 255, 223, .5);
+    box-shadow:
+        0 0 0 1px rgba(26, 73, 54, .45),
+        0 0 10px rgba(126, 231, 174, .42),
+        0 0 18px rgba(126, 231, 174, .22);
+}
+
+.bundleStatusMeta.isWarning .meta-label::after {
+    background: rgba(244, 188, 128, .95);
+    border-color: rgba(255, 219, 179, .48);
+    box-shadow:
+        0 0 0 1px rgba(74, 47, 19, .45),
+        0 0 10px rgba(244, 188, 128, .35),
+        0 0 18px rgba(244, 188, 128, .2);
+}
+
+.bundleChangeSignal {
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-weight: 500;
+    line-height: 1.25;
+}
+
+.bundleChangeSignal::before {
+    content: none;
+}
+
+.bundleChangeSignal.isClear {
+    color: rgba(194, 208, 232, .84);
+}
+
+.bundleChangeSignal.isWarning {
+    color: rgba(244, 188, 128, .93);
 }
 
 .stats {
@@ -779,6 +846,12 @@ body {
     border: 1px solid rgba(220, 170, 70, .35);
     border-radius: 999px;
     padding: 2px 5px;
+}
+
+.selectionTreeFlag.isChanged {
+    color: rgba(255, 226, 196, .98);
+    background: rgba(180, 82, 24, .28);
+    border-color: rgba(245, 154, 82, .5);
 }
 
 .selectionRemove {
