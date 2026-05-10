@@ -8,6 +8,12 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 ### Added
 ### Changed
 ### Fixed
+
+## [0.3.1] - 2026-05-10
+### Added
+### Changed
+- Updated bundled output formatting to wrap each file's content in fenced code blocks and separate file sections with `---`.
+### Fixed
 - Fixed packaged app builds to include runtime dependencies from `node_modules`, resolving startup failures such as missing `ignore` in production releases.
 
 ## [0.3.0] - 2026-04-15
