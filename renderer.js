@@ -14,7 +14,10 @@ const selectionSummaryEl = document.getElementById("selectionSummary");
 const selectionListEl = document.getElementById("selectionList");
 const selectionEmptyEl = document.getElementById("selectionEmpty");
 const addContentBtn = document.getElementById("addContent");
+const rebundleSelectionBtn = document.getElementById("rebundleSelection");
 const clearSelectionBtn = document.getElementById("clearSelection");
+const selectionQuickActionsEl = document.querySelector(".selectionQuickActions");
+const selectionDangerActionsEl = document.querySelector(".selectionDangerActions");
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
@@ -995,7 +998,10 @@ function renderSelection() {
     const total = counts.folders + counts.files;
     const hasSelection = selectionEntries.length > 0;
     addContentBtn.classList.toggle("hidden", !hasSelection);
+    rebundleSelectionBtn.classList.toggle("hidden", !hasSelection);
     clearSelectionBtn.classList.toggle("hidden", !hasSelection);
+    selectionQuickActionsEl?.classList.toggle("hidden", !hasSelection);
+    selectionDangerActionsEl?.classList.toggle("hidden", !hasSelection);
 
     selectionSummaryEl.textContent = `Bundled tree: ${total} items (folders ${counts.folders}, files ${counts.files})`;
 
@@ -1501,6 +1507,19 @@ document.getElementById("pickEntries").addEventListener("click", async () => {
 
 document.getElementById("addContent").addEventListener("click", async () => {
     await pickContent({ replace: false });
+});
+
+rebundleSelectionBtn.addEventListener("click", async () => {
+    if (selectionEntries.length === 0) return;
+    try {
+        const result = await rebundleSelectionLive();
+        if (result?.status === "success") {
+            toast("Selection rebundled.");
+        }
+    } catch (error) {
+        console.error("Manual rebundle failed", error);
+        toastError(toErrorMessage(error, "Could not rebundle the current selection."));
+    }
 });
 
 document.getElementById("clearSelection").addEventListener("click", async () => {
