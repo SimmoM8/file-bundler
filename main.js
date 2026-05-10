@@ -54,6 +54,7 @@ ipcMain.handle("statPath", async (_evt, absPath) => {
     try {
         const stat = await fs.stat(absPath);
         return {
+            absPath,
             exists: true,
             isFile: stat.isFile(),
             isDirectory: stat.isDirectory(),
@@ -61,7 +62,7 @@ ipcMain.handle("statPath", async (_evt, absPath) => {
             size: stat.size,
         };
     } catch {
-        return { exists: false, isFile: false, isDirectory: false, mtimeMs: null, size: null };
+        return { absPath, exists: false, isFile: false, isDirectory: false, mtimeMs: null, size: null };
     }
 });
 

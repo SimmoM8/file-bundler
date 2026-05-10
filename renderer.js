@@ -853,9 +853,9 @@ async function detectExternalFileChanges() {
         }
 
         if (newFlagCount > 0) {
-            const verb = newFlagCount === 1 ? "has" : "have";
+            const verbForm = newFlagCount === 1 ? "has" : "have";
             renderSelection();
-            toast(`${newFlagCount} selected ${fileWord(newFlagCount)} ${verb} changed externally. A rebundle is recommended.`);
+            toast(`${newFlagCount} selected ${fileWord(newFlagCount)} ${verbForm} changed externally. A rebundle is recommended.`);
         }
     } catch (error) {
         console.error("Failed to detect external file changes", error);
