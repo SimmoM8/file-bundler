@@ -258,27 +258,39 @@ body {
     opacity: .9;
 }
 
+.bundleStatusMeta {
+    margin-left: auto;
+    text-align: right;
+}
+
 .bundleChangeSignal {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid transparent;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     width: fit-content;
-    font-weight: 600;
+    font-weight: 500;
+    line-height: 1.25;
+}
+
+.bundleChangeSignal::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: .72;
+    flex: 0 0 auto;
 }
 
 .bundleChangeSignal.isClear {
-    color: rgba(220, 250, 230, .95);
-    background: rgba(26, 70, 44, .32);
-    border-color: rgba(120, 210, 160, .36);
+    color: rgba(194, 208, 232, .84);
 }
 
 .bundleChangeSignal.isWarning {
-    color: rgba(255, 226, 196, .98);
-    background: rgba(96, 42, 18, .48);
-    border-color: rgba(245, 154, 82, .52);
+    color: rgba(244, 188, 128, .93);
 }
 
 .stats {
