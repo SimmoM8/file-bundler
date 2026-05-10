@@ -694,7 +694,7 @@ function renderBundleChangeSignal() {
 
     const noun = fileWord(changedCount);
     const warningText = `${changedCount} selected ${noun} changed since last bundle. Rebundle recommended.`;
-    bundleChangeSignalEl.textContent = `⚠ ${changedCount} ${noun} changed`;
+    bundleChangeSignalEl.textContent = `${changedCount} ${noun} changed`;
     bundleChangeSignalEl.setAttribute("aria-label", warningText);
     bundleChangeSignalEl.title = warningText;
 }
@@ -818,6 +818,7 @@ async function captureExternalChangeBaseline() {
 async function detectExternalFileChanges() {
     if (externalChangeCheckInFlight) return;
     if (selectionEntries.length === 0) return;
+    if (document.hidden) return;
 
     externalChangeCheckInFlight = true;
     try {
@@ -1815,6 +1816,11 @@ document.getElementById("copy").addEventListener("click", async () => {
 
 detailsOverlay.addEventListener("click", (event) => {
     if (event.target === detailsOverlay) closeDetails();
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    void detectExternalFileChanges();
 });
 
 detailsCloseEl.addEventListener("click", closeDetails);
