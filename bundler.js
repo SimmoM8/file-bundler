@@ -2,7 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const ignore = require("ignore");
 
-const SEPARATOR = "\n\n--\n\n";
+const SEPARATOR = "\n\n---\n\n";
 
 const IGNORE_DIRS = new Set([
     ".git",
@@ -134,7 +134,7 @@ async function bundleFilesInternal(absPaths, root, options, preSkipped = []) {
 
         content = content.replace(/\r\n/g, "\n");
 
-        parts.push(`${label}:\n${content}`);
+        parts.push(`${label}:\n\`\`\`\n${content}\n\`\`\``);
         included++;
         includedFiles.push(label);
     }
