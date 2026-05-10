@@ -16,6 +16,8 @@ const selectionEmptyEl = document.getElementById("selectionEmpty");
 const addContentBtn = document.getElementById("addContent");
 const rebundleSelectionBtn = document.getElementById("rebundleSelection");
 const clearSelectionBtn = document.getElementById("clearSelection");
+const selectionQuickActionsEl = document.querySelector(".selectionQuickActions");
+const selectionDangerActionsEl = document.querySelector(".selectionDangerActions");
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
@@ -998,6 +1000,8 @@ function renderSelection() {
     addContentBtn.classList.toggle("hidden", !hasSelection);
     rebundleSelectionBtn.classList.toggle("hidden", !hasSelection);
     clearSelectionBtn.classList.toggle("hidden", !hasSelection);
+    selectionQuickActionsEl?.classList.toggle("hidden", !hasSelection);
+    selectionDangerActionsEl?.classList.toggle("hidden", !hasSelection);
 
     selectionSummaryEl.textContent = `Bundled tree: ${total} items (folders ${counts.folders}, files ${counts.files})`;
 
