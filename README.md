@@ -10,7 +10,7 @@ Built for developers working with AI-assisted workflows:
 - Sharing projects with teammates
 - Debugging and handoffs
 
-Current version: **0.3.0**
+Current version: **0.3.1**
 
 ## Demo
 
@@ -44,12 +44,16 @@ File Bundler solves this by letting you select your project and instantly genera
 
 ```
 path/to/file.ext:
+```
 <file contents>
+```
 
 ---
 
 path/to/other_file.ext:
+```
 <file contents>
+```
 ```
 
 ## Download
