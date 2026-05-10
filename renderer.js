@@ -19,6 +19,7 @@ const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
 const appMetaEl = document.getElementById("appMeta");
+const bundleChangeSignalEl = document.getElementById("bundleChangeSignal");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -672,6 +673,25 @@ function summarizeSelection() {
     return `Selected: ${counts.folders} folder${counts.folders === 1 ? "" : "s"}, ${counts.files} file${counts.files === 1 ? "" : "s"}`;
 }
 
+function renderBundleChangeSignal() {
+    if (!bundleChangeSignalEl) return;
+
+    const changedCount = externallyChangedPaths.size;
+    const hasWarning = changedCount > 0;
+    bundleChangeSignalEl.classList.toggle("isWarning", hasWarning);
+    bundleChangeSignalEl.classList.toggle("isClear", !hasWarning);
+
+    if (!hasWarning) {
+        bundleChangeSignalEl.textContent = "Up to date";
+        bundleChangeSignalEl.removeAttribute("title");
+        return;
+    }
+
+    const noun = changedCount === 1 ? "file" : "files";
+    bundleChangeSignalEl.textContent = `⚠ ${changedCount} ${noun} changed`;
+    bundleChangeSignalEl.title = `${changedCount} selected ${noun} changed since last bundle. Rebundle recommended.`;
+}
+
 function buildTargetLabel() {
     if (selectionEntries.length === 0) return "(no target selected)";
 
@@ -1065,6 +1085,7 @@ async function rebundleSelectionLive() {
 }
 
 function renderSelection() {
+    renderBundleChangeSignal();
     const displayRoots = buildDisplayRoots(selectionHierarchy);
     applyGroupedCollapseDefaults(displayRoots);
 
