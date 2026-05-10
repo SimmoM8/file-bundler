@@ -233,10 +233,9 @@ body {
 }
 
 .panel-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 14px;
-    justify-content: space-between;
-    flex-wrap: wrap;
     padding: 10px 10px 0 10px;
     position: relative;
     z-index: 3;
@@ -258,8 +257,13 @@ body {
     opacity: .9;
 }
 
+.statsMeta {
+    justify-self: center;
+    text-align: center;
+}
+
 .bundleStatusMeta {
-    margin-left: auto;
+    justify-self: end;
     text-align: right;
 }
 
