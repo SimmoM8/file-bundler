@@ -10,7 +10,7 @@ Built for developers working with AI-assisted workflows:
 - Sharing projects with teammates
 - Debugging and handoffs
 
-Current version: **0.3.0**
+Current version: **0.3.1**
 
 ## Demo
 
