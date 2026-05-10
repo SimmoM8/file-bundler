@@ -55,10 +55,14 @@
           <div id="selectionView" class="selectionView">
             <div class="selectionTools">
               <div id="selectionSummary" class="selectionSummary">Items: 0 (folders 0, files 0)</div>
-              <div class="selectionActions">
-                <button class="btn subtle hidden" id="addContent" title="Add more files & folders to the current selection">Add content</button>
-                <button class="btn subtle hidden" id="rebundleSelection" title="Rebundle the current selection using the latest file contents">Rebundle</button>
-                <button class="btn subtle hidden" id="clearSelection" title="Clear all currently selected files and folders">Clear selection</button>
+              <div class="selectionActions" role="group" aria-label="Selection actions">
+                <div class="selectionQuickActions" role="group" aria-label="Selection update actions">
+                  <button class="btn subtle hidden" id="addContent" title="Add more files & folders to the current selection">Add content</button>
+                  <button class="btn subtle hidden" id="rebundleSelection" title="Rebundle the current selection using the latest file contents">Rebundle</button>
+                </div>
+                <div class="selectionDangerActions" role="group" aria-label="Selection reset action">
+                  <button class="btn subtle danger hidden" id="clearSelection" title="Clear all currently selected files and folders">Clear selection</button>
+                </div>
               </div>
             </div>
             <div id="selectionList" class="selectionList" role="list"></div>
