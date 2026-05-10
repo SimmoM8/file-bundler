@@ -693,7 +693,7 @@ function renderBundleChangeSignal() {
     }
 
     const noun = fileWord(changedCount);
-    const warningText = `${changedCount} selected ${noun} changed since last bundle. Rebundle recommended.`;
+    const warningText = `${changedCount} selected ${noun} changed since last bundle. A rebundle is recommended.`;
     bundleChangeSignalEl.textContent = `${changedCount} ${noun} changed`;
     bundleChangeSignalEl.setAttribute("aria-label", warningText);
     bundleChangeSignalEl.title = warningText;
@@ -855,7 +855,7 @@ async function detectExternalFileChanges() {
         if (newFlagCount > 0) {
             const verb = newFlagCount === 1 ? "has" : "have";
             renderSelection();
-            toast(`${newFlagCount} selected ${fileWord(newFlagCount)} ${verb} changed externally. Rebundle recommended.`);
+            toast(`${newFlagCount} selected ${fileWord(newFlagCount)} ${verb} changed externally. A rebundle is recommended.`);
         }
     } catch (error) {
         console.error("Failed to detect external file changes", error);
