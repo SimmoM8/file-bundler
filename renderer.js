@@ -1505,7 +1505,7 @@ document.getElementById("addContent").addEventListener("click", async () => {
     await pickContent({ replace: false });
 });
 
-document.getElementById("rebundleSelection").addEventListener("click", async () => {
+rebundleSelectionBtn.addEventListener("click", async () => {
     if (selectionEntries.length === 0) return;
     try {
         const result = await rebundleSelectionLive();
