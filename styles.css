@@ -733,6 +733,12 @@ body {
     padding: 2px 5px;
 }
 
+.selectionTreeFlag.isChanged {
+    color: rgba(255, 226, 196, .98);
+    background: rgba(180, 82, 24, .28);
+    border-color: rgba(245, 154, 82, .5);
+}
+
 .selectionRemove {
     appearance: none;
     border: 1px solid rgba(255, 255, 255, .10);

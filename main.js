@@ -53,10 +53,45 @@ ipcMain.handle("copyToClipboard", async (_evt, text) => {
 ipcMain.handle("statPath", async (_evt, absPath) => {
     try {
         const stat = await fs.stat(absPath);
-        return { isFile: stat.isFile(), isDirectory: stat.isDirectory() };
+        return {
+            exists: true,
+            isFile: stat.isFile(),
+            isDirectory: stat.isDirectory(),
+            mtimeMs: stat.mtimeMs,
+            size: stat.size,
+        };
     } catch {
-        return { isFile: false, isDirectory: false };
+        return { exists: false, isFile: false, isDirectory: false, mtimeMs: null, size: null };
     }
+});
+
+ipcMain.handle("statPaths", async (_evt, absPaths) => {
+    if (!Array.isArray(absPaths) || absPaths.length === 0) return [];
+
+    const results = await Promise.all(absPaths.map(async (absPath) => {
+        try {
+            const stat = await fs.stat(absPath);
+            return {
+                absPath,
+                exists: true,
+                isFile: stat.isFile(),
+                isDirectory: stat.isDirectory(),
+                mtimeMs: stat.mtimeMs,
+                size: stat.size,
+            };
+        } catch {
+            return {
+                absPath,
+                exists: false,
+                isFile: false,
+                isDirectory: false,
+                mtimeMs: null,
+                size: null,
+            };
+        }
+    }));
+
+    return results;
 });
 
 ipcMain.handle("findGitRoot", async (_evt, absPath) => {

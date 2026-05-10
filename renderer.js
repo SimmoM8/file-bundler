@@ -22,6 +22,7 @@ const appMetaEl = document.getElementById("appMeta");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
+const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
 
 let selectionEntries = [];
@@ -41,6 +42,10 @@ const knownTopGroupPaths = new Set();
 const pendingAutoExpandTargets = new Set();
 const knownDisplayFolderPaths = new Set();
 const gitRootBySelectionPath = new Map();
+const fileFingerprintByPath = new Map();
+const externallyChangedPaths = new Set();
+let externalChangeCheckTimer = null;
+let externalChangeCheckInFlight = false;
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -335,6 +340,9 @@ async function refreshSelectionHierarchy() {
         knownFolderPaths.clear();
         collapsedFolders.clear();
         groupCompleteByPath.clear();
+        fileFingerprintByPath.clear();
+        externallyChangedPaths.clear();
+        stopExternalChangeWatcher();
         renderSelection();
         return;
     }
@@ -360,6 +368,8 @@ async function refreshSelectionHierarchy() {
         await refreshSelectionGitRoots();
         syncFolderCollapseDefaults(selectionHierarchy, selectedFolderRoots);
         await updateGroupCompleteness(selectionHierarchy);
+        syncExternalChangeTracking(collectBundledFilePaths(selectionHierarchy));
+        ensureExternalChangeWatcher();
         renderSelection();
     } catch (error) {
         console.error("Failed to load selection hierarchy", error);
@@ -632,6 +642,9 @@ function resetSelectionState() {
     pendingAutoExpandTargets.clear();
     knownDisplayFolderPaths.clear();
     gitRootBySelectionPath.clear();
+    fileFingerprintByPath.clear();
+    externallyChangedPaths.clear();
+    stopExternalChangeWatcher();
     lastBundleMeta = null;
     lastTotalLabel = "Total";
     outputEl.value = "";
@@ -712,6 +725,114 @@ function getBaseName(absPath) {
     const idx = normalized.lastIndexOf("/");
     if (idx < 0) return normalized;
     return normalized.slice(idx + 1) || normalized;
+}
+
+function collectBundledFilePaths(nodes, ancestorExcluded = false, out = new Set()) {
+    for (const node of nodes ?? []) {
+        const directExcluded = node.excluded === true;
+        const effectiveExcluded = ancestorExcluded || directExcluded;
+        if (node.kind === "file" && !effectiveExcluded) {
+            out.add(node.absPath);
+        }
+        collectBundledFilePaths(node.children, effectiveExcluded, out);
+    }
+    return out;
+}
+
+function buildFileFingerprint(stat) {
+    if (!stat?.exists || !stat?.isFile) return "missing";
+    const mtimeMs = Number(stat.mtimeMs ?? 0);
+    const size = Number(stat.size ?? 0);
+    return `${mtimeMs}:${size}`;
+}
+
+function syncExternalChangeTracking(paths) {
+    const activePaths = new Set(paths);
+
+    for (const knownPath of Array.from(fileFingerprintByPath.keys())) {
+        if (!activePaths.has(knownPath)) {
+            fileFingerprintByPath.delete(knownPath);
+        }
+    }
+
+    for (const changedPath of Array.from(externallyChangedPaths)) {
+        if (!activePaths.has(changedPath)) {
+            externallyChangedPaths.delete(changedPath);
+        }
+    }
+}
+
+function stopExternalChangeWatcher() {
+    if (!externalChangeCheckTimer) return;
+    clearInterval(externalChangeCheckTimer);
+    externalChangeCheckTimer = null;
+}
+
+function ensureExternalChangeWatcher() {
+    stopExternalChangeWatcher();
+    if (selectionEntries.length === 0) return;
+    externalChangeCheckTimer = setInterval(() => {
+        void detectExternalFileChanges();
+    }, CHANGE_CHECK_INTERVAL_MS);
+}
+
+async function captureExternalChangeBaseline() {
+    const filePaths = Array.from(collectBundledFilePaths(selectionHierarchy));
+    syncExternalChangeTracking(filePaths);
+
+    if (filePaths.length === 0) return;
+
+    const stats = await window.api.statPaths(filePaths);
+    for (const stat of stats) {
+        fileFingerprintByPath.set(stat.absPath, buildFileFingerprint(stat));
+    }
+}
+
+async function detectExternalFileChanges() {
+    if (externalChangeCheckInFlight) return;
+    if (selectionEntries.length === 0) return;
+
+    externalChangeCheckInFlight = true;
+    try {
+        const filePaths = Array.from(collectBundledFilePaths(selectionHierarchy));
+        syncExternalChangeTracking(filePaths);
+
+        if (filePaths.length === 0) return;
+
+        const unknownPaths = filePaths.filter((absPath) => !fileFingerprintByPath.has(absPath));
+        if (unknownPaths.length > 0) {
+            const baselineStats = await window.api.statPaths(unknownPaths);
+            for (const stat of baselineStats) {
+                fileFingerprintByPath.set(stat.absPath, buildFileFingerprint(stat));
+            }
+        }
+
+        const stats = await window.api.statPaths(filePaths);
+        let newFlagCount = 0;
+
+        for (const stat of stats) {
+            const baseline = fileFingerprintByPath.get(stat.absPath);
+            const fingerprint = buildFileFingerprint(stat);
+            if (baseline === undefined) {
+                fileFingerprintByPath.set(stat.absPath, fingerprint);
+                continue;
+            }
+
+            if (fingerprint !== baseline && !externallyChangedPaths.has(stat.absPath)) {
+                externallyChangedPaths.add(stat.absPath);
+                newFlagCount += 1;
+            }
+        }
+
+        if (newFlagCount > 0) {
+            renderSelection();
+            toast(`${newFlagCount} selected file${newFlagCount === 1 ? " has" : "s have"} changed externally. Rebundle recommended.`);
+        }
+    } catch (error) {
+        console.error("Failed to detect external file changes", error);
+    } finally {
+        externalChangeCheckInFlight = false;
+    }
 }
 
 function buildDisplayRoots(nodes) {
@@ -912,6 +1033,9 @@ async function rebundleSelectionLive() {
         outputEl.value = "";
         lastBundleMeta = null;
         lastTotalLabel = "Total";
+        fileFingerprintByPath.clear();
+        externallyChangedPaths.clear();
+        stopExternalChangeWatcher();
         renderStats(null);
         setView("selection");
         return { status: "empty" };
@@ -928,7 +1052,11 @@ async function rebundleSelectionLive() {
         outputEl.value = res.output;
         lastBundleMeta = res;
         lastTotalLabel = "Total";
+        externallyChangedPaths.clear();
+        await captureExternalChangeBaseline();
+        ensureExternalChangeWatcher();
         renderStats(res.stats);
+        renderSelection();
         return { status: "success" };
     } catch (error) {
         console.error("Live rebundle failed", error);
@@ -1048,6 +1176,13 @@ function renderSelection() {
             flag.className = "selectionTreeFlag";
             flag.textContent = "Partial";
             nameLine.appendChild(flag);
+        }
+
+        if (node.kind === "file" && externallyChangedPaths.has(node.absPath)) {
+            const changedFlag = document.createElement("span");
+            changedFlag.className = "selectionTreeFlag isChanged";
+            changedFlag.textContent = "Changed";
+            nameLine.appendChild(changedFlag);
         }
 
         if (depth === 0 && !isGroup) {
