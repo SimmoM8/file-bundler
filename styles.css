@@ -307,6 +307,7 @@ body {
 .bundleChangeSignal {
     display: inline-flex;
     align-items: center;
+    gap: 7px;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -316,7 +317,13 @@ body {
 }
 
 .bundleChangeSignal::before {
-    content: none;
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0;
+    flex: 0 0 auto;
 }
 
 .bundleChangeSignal.isClear {
