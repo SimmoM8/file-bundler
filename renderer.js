@@ -716,9 +716,9 @@ function formatFilePreview(node) {
     if (!Number.isFinite(lines) || lines < 0) return null;
     if (!size) return null;
 
-    const charsLabel = `${chars.toLocaleString()}ch`;
-    const linesLabel = `${lines.toLocaleString()}ln`;
-    return `${charsLabel} • ${linesLabel} • ${size}`;
+    const charsLabel = `${chars.toLocaleString()} chars`;
+    const linesLabel = `${lines.toLocaleString()} lines`;
+    return `${charsLabel}\u2002•\u2002${linesLabel}\u2002•\u2002${size}`;
 }
 
 function renderBundleChangeSignal() {

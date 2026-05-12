@@ -818,6 +818,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1px;
+    padding-right: 10px;
 }
 
 .selectionTreeNameLine {
