@@ -316,7 +316,7 @@ function analyzeOutputSize(text) {
     const characters = output.length;
     const lines = characters === 0 ? 0 : output.split("\n").length;
     const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
-    const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
+    const approxTokens = Math.round(characters * TOKENS_PER_CHAR_ESTIMATE);
     const warningText = characters > OUTPUT_WARNING_CHAR_THRESHOLD
         ? "Output exceeds 200,000 characters and may be too large for many LLM prompts."
         : "";
@@ -1540,7 +1540,7 @@ function renderStats(statsInput) {
             <span class="statValue">${stats.total}</span>
         </div>
         ${outputSize.warningText
-        ? `<button type="button" class="statsWarningBtn" data-action="open-size-info" aria-label="${escapeHtml(outputSize.warningText)}">Size warning</button>`
+        ? `<button type="button" class="statsWarningBtn" data-action="open-size-info" aria-label="${escapeHtml(`Large output warning details. ${outputSize.warningText}`)}">Size warning</button>`
         : ""}
     `;
 
