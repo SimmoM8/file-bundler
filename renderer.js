@@ -29,6 +29,12 @@ const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
 const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
+const TOKENS_PER_CHAR_ESTIMATE = 0.25;
+const COMMON_LLM_CONTEXT_LIMITS = [
+    { label: "8k", tokens: 8_000 },
+    { label: "32k", tokens: 32_000 },
+    { label: "128k", tokens: 128_000 },
+];
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -284,6 +290,36 @@ function normalizeStats(input) {
     }
 
     return null;
+}
+
+function formatNumber(value) {
+    return Number(value).toLocaleString();
+}
+
+function analyzeOutputSize(text) {
+    const output = String(text || "");
+    const characters = output.length;
+    const lines = characters === 0 ? 0 : output.split("\n").length;
+    const kilobytes = (characters / 1024).toFixed(characters >= 10_240 ? 1 : 2);
+    const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
+
+    let warningText = "";
+    if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[2].tokens) {
+        warningText = "Likely too large for many large-context LLMs (>128k tokens estimated).";
+    } else if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[1].tokens) {
+        warningText = "Potentially too large for many LLMs (>32k tokens estimated).";
+    } else if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[0].tokens) {
+        warningText = "Potentially too large for smaller-context LLMs (>8k tokens estimated).";
+    }
+
+    return {
+        characters,
+        lines,
+        kilobytes,
+        approxTokens,
+        warningText,
+        summary: `${formatNumber(characters)} chars • ${kilobytes} KB • ${formatNumber(lines)} lines`,
+    };
 }
 
 function getSelectionCounts() {
@@ -1416,6 +1452,10 @@ function buildHoverList(title, items, options = {}) {
 
 function renderStats(statsInput) {
     const stats = normalizeStats(statsInput);
+    const outputSize = analyzeOutputSize(outputEl.value);
+    const outputTitle = outputSize.warningText
+        ? `${outputSize.warningText} Approx tokens: ${formatNumber(outputSize.approxTokens)}.`
+        : `Approx tokens: ${formatNumber(outputSize.approxTokens)}. Common context windows: 8k, 32k, 128k.`;
 
     if (!stats) {
         statsEl.dataset.hasDetails = "";
@@ -1430,6 +1470,10 @@ function renderStats(statsInput) {
             </div>
             <div class="statChip statChipPlaceholder" aria-hidden="true">
                 <span class="statLabel">${lastTotalLabel}</span>
+                <span class="statValue">—</span>
+            </div>
+            <div class="statChip statChipPlaceholder" aria-hidden="true">
+                <span class="statLabel">Output size</span>
                 <span class="statValue">—</span>
             </div>
         `;
@@ -1458,6 +1502,10 @@ function renderStats(statsInput) {
         <div class="statChip">
             <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
+        </div>
+        <div class="statChip statChipSize ${outputSize.warningText ? "statChipWarning" : ""}" title="${escapeHtml(outputTitle)}">
+            <span class="statLabel">Output size${outputSize.warningText ? " (warn)" : ""}</span>
+            <span class="statValue statValueSize">${outputSize.summary}</span>
         </div>
     `;
 
