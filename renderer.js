@@ -329,7 +329,7 @@ function analyzeOutputSize(text) {
         kilobytesDisplay,
         approxTokens,
         warningText,
-        summary: `${formatNumber(characters)} chars • ${kilobytesDisplay} KB • ${formatNumber(lines)} lines`,
+        summary: `${formatNumber(characters)} chars • ${formatNumber(lines)} lines • ${kilobytesDisplay} KB`,
     };
 }
 
