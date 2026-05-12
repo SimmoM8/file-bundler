@@ -301,25 +301,26 @@ function analyzeOutputSize(text) {
     const output = String(text || "");
     const characters = output.length;
     const lines = characters === 0 ? 0 : output.split("\n").length;
-    const kilobytes = (characters / 1024).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
+    const kilobytesDisplay = (characters / 1024).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
     const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
+    const [smallContext, mediumContext, largeContext] = COMMON_LLM_CONTEXT_LIMITS;
 
     let warningText = "";
-    if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[2].tokens) {
+    if (approxTokens > largeContext.tokens) {
         warningText = "Likely too large for many large-context LLMs (>128k tokens estimated).";
-    } else if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[1].tokens) {
+    } else if (approxTokens > mediumContext.tokens) {
         warningText = "Potentially too large for many LLMs (>32k tokens estimated).";
-    } else if (approxTokens > COMMON_LLM_CONTEXT_LIMITS[0].tokens) {
+    } else if (approxTokens > smallContext.tokens) {
         warningText = "Potentially too large for smaller-context LLMs (>8k tokens estimated).";
     }
 
     return {
         characters,
         lines,
-        kilobytes,
+        kilobytesDisplay,
         approxTokens,
         warningText,
-        summary: `${formatNumber(characters)} chars • ${kilobytes} KB • ${formatNumber(lines)} lines`,
+        summary: `${formatNumber(characters)} chars • ${kilobytesDisplay} KB • ${formatNumber(lines)} lines`,
     };
 }
 
