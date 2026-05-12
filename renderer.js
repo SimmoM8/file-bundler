@@ -33,7 +33,7 @@ const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
 const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
-// Rough cross-model estimate for UI warning purposes only (actual tokenization varies by model/tokenizer).
+// Rough cross-model estimate for UI warning purposes only: ~4 characters per token (~0.25 tokens/character).
 const TOKENS_PER_CHAR_ESTIMATE = 0.25;
 const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
