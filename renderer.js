@@ -30,6 +30,7 @@ const FADE_MS = 250;
 const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
 const TOKENS_PER_CHAR_ESTIMATE = 0.25;
+const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
 const COMMON_LLM_CONTEXT_LIMITS = [
     { label: "8k", tokens: 8_000 },
@@ -301,16 +302,19 @@ function analyzeOutputSize(text) {
     const output = String(text || "");
     const characters = output.length;
     const lines = characters === 0 ? 0 : output.split("\n").length;
-    const kilobytesDisplay = (characters / 1024).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
+    const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
     const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
-    const [smallContext, mediumContext, largeContext] = COMMON_LLM_CONTEXT_LIMITS;
+    const contextByLabel = Object.fromEntries(COMMON_LLM_CONTEXT_LIMITS.map((limit) => [limit.label, limit.tokens]));
+    const smallContextTokens = contextByLabel["8k"] ?? 8_000;
+    const mediumContextTokens = contextByLabel["32k"] ?? 32_000;
+    const largeContextTokens = contextByLabel["128k"] ?? 128_000;
 
     let warningText = "";
-    if (approxTokens > largeContext.tokens) {
+    if (approxTokens > largeContextTokens) {
         warningText = "Likely too large for many large-context LLMs (>128k tokens estimated).";
-    } else if (approxTokens > mediumContext.tokens) {
+    } else if (approxTokens > mediumContextTokens) {
         warningText = "Potentially too large for many LLMs (>32k tokens estimated).";
-    } else if (approxTokens > smallContext.tokens) {
+    } else if (approxTokens > smallContextTokens) {
         warningText = "Potentially too large for smaller-context LLMs (>8k tokens estimated).";
     }
 
