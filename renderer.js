@@ -681,6 +681,39 @@ function fileWord(count) {
     return count === 1 ? "file" : "files";
 }
 
+function formatByteSize(bytes) {
+    const normalized = Number(bytes);
+    if (!Number.isFinite(normalized) || normalized < 0) return null;
+    if (normalized < 1024) return `${normalized.toLocaleString()} B`;
+
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = normalized;
+    let unitIndex = -1;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+
+    const fixed = value >= 100 ? value.toFixed(0) : value >= 10 ? value.toFixed(1) : value.toFixed(2);
+    const shortValue = fixed.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+    return `${shortValue} ${units[unitIndex]}`;
+}
+
+function formatFilePreview(node) {
+    if (node?.kind !== "file") return null;
+
+    const chars = Number(node.charCount);
+    const lines = Number(node.lineCount);
+    const size = formatByteSize(node.sizeBytes);
+    if (!Number.isFinite(chars) || chars < 0) return null;
+    if (!Number.isFinite(lines) || lines < 0) return null;
+    if (!size) return null;
+
+    const charsLabel = `${chars.toLocaleString()} char${chars === 1 ? "" : "s"}`;
+    const linesLabel = `${lines.toLocaleString()} line${lines === 1 ? "" : "s"}`;
+    return `${charsLabel} • ${linesLabel} • ${size}`;
+}
+
 function renderBundleChangeSignal() {
     if (!bundleChangeSignalEl) return;
 
@@ -1224,6 +1257,16 @@ function renderSelection() {
             changedFlag.className = "selectionTreeFlag isChanged";
             changedFlag.textContent = "Changed";
             nameLine.appendChild(changedFlag);
+        }
+
+        if (node.kind === "file") {
+            const previewText = formatFilePreview(node);
+            if (previewText) {
+                const meta = document.createElement("div");
+                meta.className = "selectionTreeMeta";
+                meta.textContent = previewText;
+                textWrap.appendChild(meta);
+            }
         }
 
         if (depth === 0 && !isGroup) {

@@ -216,11 +216,15 @@ async function getSelectionHierarchy(selectionEntries, options = {}) {
         if (entry.kind === "file") {
             const skipReason = await getFileSkipReason(entry.absPath);
             if (skipReason) continue;
+            const previewMeta = await getFilePreviewMeta(entry.absPath);
             nodes.push({
                 kind: "file",
                 name: path.basename(entry.absPath),
                 absPath: entry.absPath,
                 excluded: excludedPathSet.has(path.resolve(entry.absPath)),
+                charCount: previewMeta?.charCount ?? null,
+                lineCount: previewMeta?.lineCount ?? null,
+                sizeBytes: previewMeta?.sizeBytes ?? null,
                 children: [],
             });
             continue;
@@ -281,11 +285,15 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
                 if (isIgnoredByGitignore(abs, false)) continue;
                 const skipReason = await getFileSkipReason(abs);
                 if (skipReason) continue;
+                const previewMeta = await getFilePreviewMeta(abs);
                 node.children.push({
                     kind: "file",
                     name: entry.name,
                     absPath: abs,
                     excluded: excludedPathSet.has(path.resolve(abs)),
+                    charCount: previewMeta?.charCount ?? null,
+                    lineCount: previewMeta?.lineCount ?? null,
+                    sizeBytes: previewMeta?.sizeBytes ?? null,
                     children: [],
                 });
             }
@@ -379,6 +387,23 @@ async function getFileSkipReason(absPath) {
     if (stat.size > MAX_FILE_BYTES) return "too large";
     if (await sniffBinary(absPath)) return "binary";
     return null;
+}
+
+async function getFilePreviewMeta(absPath) {
+    try {
+        const [stat, rawContent] = await Promise.all([
+            fs.stat(absPath),
+            fs.readFile(absPath, "utf8"),
+        ]);
+        const content = rawContent.replace(/\r\n/g, "\n");
+        return {
+            charCount: content.length,
+            lineCount: content.length === 0 ? 0 : content.split("\n").length,
+            sizeBytes: stat.size,
+        };
+    } catch {
+        return null;
+    }
 }
 
 function isPathExcluded(absPath, excludedPathSet) {
