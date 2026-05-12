@@ -21,14 +21,26 @@ const selectionDangerActionsEl = document.querySelector(".selectionDangerActions
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
+const outputDiagnosticsEl = document.getElementById("outputDiagnostics");
 const appMetaEl = document.getElementById("appMeta");
 const bundleChangeSignalEl = document.getElementById("bundleChangeSignal");
 const bundleStatusMetaEl = document.querySelector(".bundleStatusMeta");
+const sizeInfoOverlay = document.getElementById("sizeInfoOverlay");
+const sizeInfoCloseEl = document.getElementById("sizeInfoClose");
+const sizeInfoCurrentEl = document.getElementById("sizeInfoCurrent");
+const sizeInfoThresholdEl = document.getElementById("sizeInfoThreshold");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
 const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
+// Rough cross-model estimate for UI warning purposes only: ~4 characters per token (0.25 tokens per character).
+const TOKENS_PER_CHAR_ESTIMATE = 0.25;
+const BYTES_PER_KB = 1024;
+const KB_PRECISION_THRESHOLD_CHARS = 10_240;
+const LARGE_KB_PRECISION_THRESHOLD_CHARS = 102_400;
+const OUTPUT_WARNING_TOKEN_THRESHOLD = 100_000;
+const OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL = formatNumber(OUTPUT_WARNING_TOKEN_THRESHOLD);
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -51,6 +63,8 @@ const fileFingerprintByPath = new Map();
 const externallyChangedPaths = new Set();
 let externalChangeCheckTimer = null;
 let externalChangeCheckInFlight = false;
+let lastOutputAnalysis = null;
+let lastFocusedElementBeforeSizeInfo = null;
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -62,9 +76,14 @@ renderStats(null);
 targetEl.textContent = buildTargetLabel();
 renderSelection();
 setView("selection");
+if (sizeInfoThresholdEl) sizeInfoThresholdEl.textContent = OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL;
 void renderAppMeta();
 
 statsEl.addEventListener("click", (event) => {
+    if (event.target.closest("[data-action='open-size-info']")) {
+        openSizeInfo();
+        return;
+    }
     if (!statsEl.dataset.hasDetails) return;
     if (event.target.closest("button")) return;
     const statChip = event.target.closest(".statChip");
@@ -284,6 +303,81 @@ function normalizeStats(input) {
     }
 
     return null;
+}
+
+function formatNumber(value) {
+    return Number(value).toLocaleString();
+}
+
+function getKilobytePrecision(characters) {
+    if (characters >= LARGE_KB_PRECISION_THRESHOLD_CHARS) return 0;
+    if (characters >= KB_PRECISION_THRESHOLD_CHARS) return 1;
+    return 2;
+}
+
+function analyzeOutputSize(text) {
+    const output = String(text || "");
+    const characters = output.length;
+    let lines = 0;
+    if (characters > 0) {
+        lines = 1;
+        for (let i = 0; i < characters; i += 1) {
+            if (output.charCodeAt(i) === 10) lines += 1;
+        }
+    }
+    // Display string used in UI copy only.
+    const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
+    const approxTokens = Math.round(characters * TOKENS_PER_CHAR_ESTIMATE);
+    const warningText = approxTokens > OUTPUT_WARNING_TOKEN_THRESHOLD
+        ? `Output exceeds an estimated ${OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL} tokens and may be too large for many LLM prompts.`
+        : "";
+
+    return {
+        characters,
+        lines,
+        kilobytesDisplay,
+        approxTokens,
+        warningText,
+        summary: `${formatNumber(characters)} chars • ${formatNumber(lines)} lines • ${kilobytesDisplay} KB`,
+    };
+}
+
+function renderOutputDiagnostics(outputSize) {
+    if (!outputDiagnosticsEl) return;
+
+    if (!outputSize || outputSize.characters === 0) {
+        outputDiagnosticsEl.classList.remove("isWarning");
+        outputDiagnosticsEl.textContent = "Output: —";
+        return;
+    }
+
+    outputDiagnosticsEl.classList.toggle("isWarning", Boolean(outputSize.warningText));
+    outputDiagnosticsEl.textContent = `Output: ${outputSize.summary}`;
+}
+
+function openSizeInfo() {
+    if (!sizeInfoOverlay) return;
+    lastFocusedElementBeforeSizeInfo = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    sizeInfoOverlay.classList.remove("hidden");
+    sizeInfoOverlay.setAttribute("aria-hidden", "false");
+
+    if (sizeInfoCurrentEl && lastOutputAnalysis) {
+        const detail = lastOutputAnalysis.warningText
+            ? `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated).`
+            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below estimated ${OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL}-token warning threshold).`;
+        sizeInfoCurrentEl.textContent = `Current output: ${detail}`;
+    }
+
+    sizeInfoCloseEl?.focus();
+}
+
+function closeSizeInfo() {
+    if (!sizeInfoOverlay) return;
+    sizeInfoOverlay.classList.add("hidden");
+    sizeInfoOverlay.setAttribute("aria-hidden", "true");
+    lastFocusedElementBeforeSizeInfo?.focus();
 }
 
 function getSelectionCounts() {
@@ -1416,6 +1510,9 @@ function buildHoverList(title, items, options = {}) {
 
 function renderStats(statsInput) {
     const stats = normalizeStats(statsInput);
+    const outputSize = analyzeOutputSize(outputEl.value);
+    lastOutputAnalysis = outputSize;
+    renderOutputDiagnostics(outputSize);
 
     if (!stats) {
         statsEl.dataset.hasDetails = "";
@@ -1459,6 +1556,9 @@ function renderStats(statsInput) {
             <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
         </div>
+        ${outputSize.warningText
+        ? `<button type="button" class="statsWarningBtn" data-action="open-size-info" aria-label="${escapeHtml(`Large output warning details. ${outputSize.warningText}`)}">Size warning</button>`
+        : ""}
     `;
 
     attachHoverPositioning();
@@ -1842,16 +1942,28 @@ detailsOverlay.addEventListener("click", (event) => {
     if (event.target === detailsOverlay) closeDetails();
 });
 
+if (sizeInfoOverlay) {
+    sizeInfoOverlay.addEventListener("click", (event) => {
+        if (event.target === sizeInfoOverlay) closeSizeInfo();
+    });
+}
+
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     void detectExternalFileChanges();
 });
 
 detailsCloseEl.addEventListener("click", closeDetails);
+if (sizeInfoCloseEl) sizeInfoCloseEl.addEventListener("click", closeSizeInfo);
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !detailsOverlay.classList.contains("hidden")) {
         closeDetails();
+        return;
+    }
+    if (event.key === "Escape" && sizeInfoOverlay && !sizeInfoOverlay.classList.contains("hidden")) {
+        closeSizeInfo();
+        return;
     }
 });
 
