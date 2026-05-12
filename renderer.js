@@ -30,6 +30,7 @@ const FADE_MS = 250;
 const CHANGE_CHECK_INTERVAL_MS = 3000;
 const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
 const TOKENS_PER_CHAR_ESTIMATE = 0.25;
+const KB_PRECISION_THRESHOLD_CHARS = 10_240;
 const COMMON_LLM_CONTEXT_LIMITS = [
     { label: "8k", tokens: 8_000 },
     { label: "32k", tokens: 32_000 },
@@ -300,7 +301,7 @@ function analyzeOutputSize(text) {
     const output = String(text || "");
     const characters = output.length;
     const lines = characters === 0 ? 0 : output.split("\n").length;
-    const kilobytes = (characters / 1024).toFixed(characters >= 10_240 ? 1 : 2);
+    const kilobytes = (characters / 1024).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
     const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
 
     let warningText = "";
@@ -1456,6 +1457,9 @@ function renderStats(statsInput) {
     const outputTitle = outputSize.warningText
         ? `${outputSize.warningText} Approx tokens: ${formatNumber(outputSize.approxTokens)}.`
         : `Approx tokens: ${formatNumber(outputSize.approxTokens)}. Common context windows: 8k, 32k, 128k.`;
+    const outputAriaLabel = outputSize.warningText
+        ? `Output size warning. ${outputSize.summary}. ${outputSize.warningText}`
+        : `Output size ${outputSize.summary}.`;
 
     if (!stats) {
         statsEl.dataset.hasDetails = "";
@@ -1503,7 +1507,7 @@ function renderStats(statsInput) {
             <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
         </div>
-        <div class="statChip statChipSize ${outputSize.warningText ? "statChipWarning" : ""}" title="${escapeHtml(outputTitle)}">
+        <div class="statChip statChipSize ${outputSize.warningText ? "statChipWarning" : ""}" title="${escapeHtml(outputTitle)}" aria-label="${escapeHtml(outputAriaLabel)}">
             <span class="statLabel">Output size${outputSize.warningText ? " (warn)" : ""}</span>
             <span class="statValue statValueSize">${outputSize.summary}</span>
         </div>
