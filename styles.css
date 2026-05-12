@@ -378,18 +378,28 @@ body {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 10px 24px rgba(0, 0, 0, .22);
 }
 
-.statChipSize {
-    cursor: default;
+.statsWarningBtn {
+    appearance: none;
+    border: 1px solid rgba(244, 188, 128, .44);
+    background: rgba(110, 64, 30, .30);
+    color: rgba(255, 224, 196, .98);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, transform .12s ease;
 }
 
-.statValueSize {
-    text-align: left;
+.statsWarningBtn:hover {
+    background: rgba(136, 78, 36, .42);
+    border-color: rgba(255, 210, 164, .65);
 }
 
-.statChipWarning {
-    border-color: rgba(244, 188, 128, .52);
-    background: rgba(84, 58, 34, .55);
-    box-shadow: inset 0 1px 0 rgba(255, 224, 193, .14), 0 12px 26px rgba(0, 0, 0, .32);
+.statsWarningBtn:active {
+    transform: translateY(1px);
 }
 
 .statHover {
@@ -579,12 +589,30 @@ body {
 
 .panel-switch {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     padding: 2px 4px 8px 4px;
 }
 
 .viewToggle .segmentedBtn {
     padding: 6px 12px;
+}
+
+.outputDiagnostics {
+    font-size: 11px;
+    color: rgba(212, 224, 244, .68);
+    letter-spacing: .01em;
+    line-height: 1.3;
+    padding: 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(64ch, 62%);
+}
+
+.outputDiagnostics.isWarning {
+    color: rgba(244, 188, 128, .93);
 }
 
 .selectionView {
@@ -1081,6 +1109,29 @@ body {
     color: rgba(255, 255, 255, .86);
     font-size: 12.25px;
     line-height: 1.45;
+}
+
+.sizeInfoCard {
+    width: min(540px, 92vw);
+    height: auto;
+    max-height: min(540px, 86vh);
+}
+
+.sizeInfoBody {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.sizeInfoBody p {
+    margin: 0;
+    color: rgba(238, 244, 255, .88);
+    font-size: 12.25px;
+    line-height: 1.5;
+}
+
+.sizeInfoCurrent {
+    color: rgba(193, 216, 255, .95);
 }
 
 .confirmCheckbox {

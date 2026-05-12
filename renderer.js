@@ -21,9 +21,13 @@ const selectionDangerActionsEl = document.querySelector(".selectionDangerActions
 const selectionViewEl = document.getElementById("selectionView");
 const viewSelectionBtn = document.getElementById("viewSelection");
 const viewOutputBtn = document.getElementById("viewOutput");
+const outputDiagnosticsEl = document.getElementById("outputDiagnostics");
 const appMetaEl = document.getElementById("appMeta");
 const bundleChangeSignalEl = document.getElementById("bundleChangeSignal");
 const bundleStatusMetaEl = document.querySelector(".bundleStatusMeta");
+const sizeInfoOverlay = document.getElementById("sizeInfoOverlay");
+const sizeInfoCloseEl = document.getElementById("sizeInfoClose");
+const sizeInfoCurrentEl = document.getElementById("sizeInfoCurrent");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -34,11 +38,7 @@ const TOKENS_PER_CHAR_ESTIMATE = 0.25;
 const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
 const LARGE_KB_PRECISION_THRESHOLD_CHARS = 102_400;
-const COMMON_LLM_CONTEXT_LIMITS = [
-    { label: "8k", tokens: 8_000 },
-    { label: "32k", tokens: 32_000 },
-    { label: "128k", tokens: 128_000 },
-];
+const OUTPUT_WARNING_CHAR_THRESHOLD = 200_000;
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -61,6 +61,7 @@ const fileFingerprintByPath = new Map();
 const externallyChangedPaths = new Set();
 let externalChangeCheckTimer = null;
 let externalChangeCheckInFlight = false;
+let lastOutputAnalysis = null;
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -75,6 +76,10 @@ setView("selection");
 void renderAppMeta();
 
 statsEl.addEventListener("click", (event) => {
+    if (event.target.closest("[data-action='open-size-info']")) {
+        openSizeInfo();
+        return;
+    }
     if (!statsEl.dataset.hasDetails) return;
     if (event.target.closest("button")) return;
     const statChip = event.target.closest(".statChip");
@@ -300,11 +305,6 @@ function formatNumber(value) {
     return Number(value).toLocaleString();
 }
 
-function getContextTokens(label, fallback) {
-    const match = COMMON_LLM_CONTEXT_LIMITS.find((limit) => limit.label === label);
-    return match?.tokens ?? fallback;
-}
-
 function getKilobytePrecision(characters) {
     if (characters >= LARGE_KB_PRECISION_THRESHOLD_CHARS) return 0;
     if (characters >= KB_PRECISION_THRESHOLD_CHARS) return 1;
@@ -317,18 +317,9 @@ function analyzeOutputSize(text) {
     const lines = characters === 0 ? 0 : output.split("\n").length;
     const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
     const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
-    const smallContextTokens = getContextTokens("8k", 8_000);
-    const mediumContextTokens = getContextTokens("32k", 32_000);
-    const largeContextTokens = getContextTokens("128k", 128_000);
-
-    let warningText = "";
-    if (approxTokens > largeContextTokens) {
-        warningText = "Likely too large for many large-context LLMs (>128k tokens estimated).";
-    } else if (approxTokens > mediumContextTokens) {
-        warningText = "Potentially too large for many LLMs (>32k tokens estimated).";
-    } else if (approxTokens > smallContextTokens) {
-        warningText = "Potentially too large for smaller-context LLMs (>8k tokens estimated).";
-    }
+    const warningText = characters > OUTPUT_WARNING_CHAR_THRESHOLD
+        ? "Output exceeds 200,000 characters and may be too large for many LLM prompts."
+        : "";
 
     return {
         characters,
@@ -338,6 +329,38 @@ function analyzeOutputSize(text) {
         warningText,
         summary: `${formatNumber(characters)} chars • ${kilobytesDisplay} KB • ${formatNumber(lines)} lines`,
     };
+}
+
+function renderOutputDiagnostics(outputSize) {
+    if (!outputDiagnosticsEl) return;
+
+    if (!outputSize || outputSize.characters === 0) {
+        outputDiagnosticsEl.classList.remove("isWarning");
+        outputDiagnosticsEl.textContent = "Output: —";
+        return;
+    }
+
+    outputDiagnosticsEl.classList.toggle("isWarning", Boolean(outputSize.warningText));
+    outputDiagnosticsEl.textContent = `Output: ${outputSize.summary}`;
+}
+
+function openSizeInfo() {
+    if (!sizeInfoOverlay) return;
+    sizeInfoOverlay.classList.remove("hidden");
+    sizeInfoOverlay.setAttribute("aria-hidden", "false");
+
+    if (sizeInfoCurrentEl && lastOutputAnalysis) {
+        const detail = lastOutputAnalysis.warningText
+            ? `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated).`
+            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below 200,000-char warning threshold).`;
+        sizeInfoCurrentEl.textContent = `Current output: ${detail}`;
+    }
+}
+
+function closeSizeInfo() {
+    if (!sizeInfoOverlay) return;
+    sizeInfoOverlay.classList.add("hidden");
+    sizeInfoOverlay.setAttribute("aria-hidden", "true");
 }
 
 function getSelectionCounts() {
@@ -1471,12 +1494,8 @@ function buildHoverList(title, items, options = {}) {
 function renderStats(statsInput) {
     const stats = normalizeStats(statsInput);
     const outputSize = analyzeOutputSize(outputEl.value);
-    const outputTitle = outputSize.warningText
-        ? `${outputSize.warningText} Approx tokens: ${formatNumber(outputSize.approxTokens)}.`
-        : `Approx tokens: ${formatNumber(outputSize.approxTokens)}. Common context windows: 8k, 32k, 128k.`;
-    const outputAriaLabel = outputSize.warningText
-        ? `Output size warning. ${outputSize.summary}. ${outputSize.warningText}`
-        : `Output size ${outputSize.summary}.`;
+    lastOutputAnalysis = outputSize;
+    renderOutputDiagnostics(outputSize);
 
     if (!stats) {
         statsEl.dataset.hasDetails = "";
@@ -1491,10 +1510,6 @@ function renderStats(statsInput) {
             </div>
             <div class="statChip statChipPlaceholder" aria-hidden="true">
                 <span class="statLabel">${lastTotalLabel}</span>
-                <span class="statValue">—</span>
-            </div>
-            <div class="statChip statChipPlaceholder" aria-hidden="true">
-                <span class="statLabel">Output size</span>
                 <span class="statValue">—</span>
             </div>
         `;
@@ -1524,10 +1539,9 @@ function renderStats(statsInput) {
             <span class="statLabel">${lastTotalLabel}</span>
             <span class="statValue">${stats.total}</span>
         </div>
-        <div class="statChip statChipSize ${outputSize.warningText ? "statChipWarning" : ""}" title="${escapeHtml(outputTitle)}" aria-label="${escapeHtml(outputAriaLabel)}">
-            <span class="statLabel">Output size${outputSize.warningText ? " (warn)" : ""}</span>
-            <span class="statValue statValueSize">${outputSize.summary}</span>
-        </div>
+        ${outputSize.warningText
+        ? `<button type="button" class="statsWarningBtn" data-action="open-size-info" aria-label="${escapeHtml(outputSize.warningText)}">Size warning</button>`
+        : ""}
     `;
 
     attachHoverPositioning();
@@ -1911,17 +1925,26 @@ detailsOverlay.addEventListener("click", (event) => {
     if (event.target === detailsOverlay) closeDetails();
 });
 
+if (sizeInfoOverlay) {
+    sizeInfoOverlay.addEventListener("click", (event) => {
+        if (event.target === sizeInfoOverlay) closeSizeInfo();
+    });
+}
+
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     void detectExternalFileChanges();
 });
 
 detailsCloseEl.addEventListener("click", closeDetails);
+if (sizeInfoCloseEl) sizeInfoCloseEl.addEventListener("click", closeSizeInfo);
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !detailsOverlay.classList.contains("hidden")) {
         closeDetails();
+        return;
     }
+    if (event.key === "Escape" && sizeInfoOverlay && !sizeInfoOverlay.classList.contains("hidden")) closeSizeInfo();
 });
 
 tabIncludedEl.addEventListener("click", () => setActiveTab("included"));
