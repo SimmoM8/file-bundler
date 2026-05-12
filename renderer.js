@@ -38,7 +38,7 @@ const TOKENS_PER_CHAR_ESTIMATE = 0.25;
 const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
 const LARGE_KB_PRECISION_THRESHOLD_CHARS = 102_400;
-const OUTPUT_WARNING_CHAR_THRESHOLD = 200_000;
+const OUTPUT_WARNING_TOKEN_THRESHOLD = 200_000;
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -319,8 +319,8 @@ function analyzeOutputSize(text) {
     // Display string used in UI copy only.
     const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
     const approxTokens = Math.round(characters * TOKENS_PER_CHAR_ESTIMATE);
-    const warningText = characters > OUTPUT_WARNING_CHAR_THRESHOLD
-        ? "Output exceeds 200,000 characters and may be too large for many LLM prompts."
+    const warningText = approxTokens > OUTPUT_WARNING_TOKEN_THRESHOLD
+        ? "Output exceeds an estimated 200,000 tokens and may be too large for many LLM prompts."
         : "";
 
     return {
@@ -357,7 +357,7 @@ function openSizeInfo() {
     if (sizeInfoCurrentEl && lastOutputAnalysis) {
         const detail = lastOutputAnalysis.warningText
             ? `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated).`
-            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below 200,000-char warning threshold).`;
+            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below estimated 200,000-token warning threshold).`;
         sizeInfoCurrentEl.textContent = `Current output: ${detail}`;
     }
 
