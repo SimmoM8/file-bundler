@@ -706,8 +706,9 @@ function formatByteSize(bytes) {
     return `${shortValue} ${units[unitIndex]}`;
 }
 
-function formatFilePreview(node) {
-    if (node?.kind !== "file") return null;
+function formatNodePreview(node) {
+    const supportsPreview = node?.kind === "file" || node?.kind === "folder";
+    if (!supportsPreview) return null;
 
     const chars = Number(node.charCount);
     const lines = Number(node.lineCount);
@@ -1266,8 +1267,8 @@ function renderSelection() {
             nameLine.appendChild(changedFlag);
         }
 
-        if (node.kind === "file") {
-            const previewText = formatFilePreview(node);
+        if (node.kind === "file" || node.kind === "folder") {
+            const previewText = formatNodePreview(node);
             if (previewText) {
                 const preview = document.createElement("span");
                 preview.className = "selectionTreePreview";

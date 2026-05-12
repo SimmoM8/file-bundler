@@ -257,6 +257,9 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
             name: path.basename(dirPath),
             absPath: dirPath,
             excluded: directExcluded,
+            charCount: null,
+            lineCount: null,
+            sizeBytes: null,
             children: [],
         };
 
@@ -297,6 +300,28 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
                     children: [],
                 });
             }
+        }
+
+        let totalChars = 0;
+        let totalLines = 0;
+        let totalSizeBytes = 0;
+        let hasPreviewTotals = false;
+        for (const child of node.children) {
+            const childChars = Number(child.charCount);
+            const childLines = Number(child.lineCount);
+            const childSizeBytes = Number(child.sizeBytes);
+            if (!Number.isFinite(childChars) || childChars < 0) continue;
+            if (!Number.isFinite(childLines) || childLines < 0) continue;
+            if (!Number.isFinite(childSizeBytes) || childSizeBytes < 0) continue;
+            totalChars += childChars;
+            totalLines += childLines;
+            totalSizeBytes += childSizeBytes;
+            hasPreviewTotals = true;
+        }
+        if (hasPreviewTotals) {
+            node.charCount = totalChars;
+            node.lineCount = totalLines;
+            node.sizeBytes = totalSizeBytes;
         }
 
         if (node.children.length === 0 && !node.excluded) return null;
