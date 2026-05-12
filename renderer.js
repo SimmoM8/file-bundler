@@ -62,6 +62,7 @@ const externallyChangedPaths = new Set();
 let externalChangeCheckTimer = null;
 let externalChangeCheckInFlight = false;
 let lastOutputAnalysis = null;
+let lastFocusedElementBeforeSizeInfo = null;
 
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
@@ -347,6 +348,9 @@ function renderOutputDiagnostics(outputSize) {
 
 function openSizeInfo() {
     if (!sizeInfoOverlay) return;
+    lastFocusedElementBeforeSizeInfo = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     sizeInfoOverlay.classList.remove("hidden");
     sizeInfoOverlay.setAttribute("aria-hidden", "false");
 
@@ -356,12 +360,15 @@ function openSizeInfo() {
             : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below 200,000-char warning threshold).`;
         sizeInfoCurrentEl.textContent = `Current output: ${detail}`;
     }
+
+    sizeInfoCloseEl?.focus();
 }
 
 function closeSizeInfo() {
     if (!sizeInfoOverlay) return;
     sizeInfoOverlay.classList.add("hidden");
     sizeInfoOverlay.setAttribute("aria-hidden", "true");
+    lastFocusedElementBeforeSizeInfo?.focus();
 }
 
 function getSelectionCounts() {
