@@ -1272,7 +1272,9 @@ function renderSelection() {
                 const preview = document.createElement("span");
                 preview.className = "selectionTreePreview";
                 preview.textContent = previewText;
-                preview.title = `${Number(node.charCount).toLocaleString()} characters • ${Number(node.lineCount).toLocaleString()} lines • ${formatByteSize(node.sizeBytes)}`;
+                const previewVerbose = `${Number(node.charCount).toLocaleString()} characters • ${Number(node.lineCount).toLocaleString()} lines • ${formatByteSize(node.sizeBytes)}`;
+                preview.title = previewVerbose;
+                preview.setAttribute("aria-label", previewVerbose);
                 nameLine.appendChild(preview);
             }
         }
