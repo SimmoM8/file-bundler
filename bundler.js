@@ -391,14 +391,26 @@ async function getFileSkipReason(absPath) {
 
 async function getFilePreviewMeta(absPath) {
     try {
-        const [stat, rawContent] = await Promise.all([
-            fs.stat(absPath),
-            fs.readFile(absPath, "utf8"),
-        ]);
+        const stat = await fs.stat(absPath);
+        if (!stat.isFile() || stat.size > MAX_FILE_BYTES) {
+            return null;
+        }
+        const rawContent = await fs.readFile(absPath, "utf8");
         const content = rawContent.replace(/\r\n/g, "\n");
+        let newlineCount = 0;
+        for (const ch of content) {
+            if (ch === "\n") newlineCount += 1;
+        }
+        let lineCount = 0;
+        if (content.length > 0) {
+            lineCount = newlineCount + 1;
+            if (content.endsWith("\n")) {
+                lineCount = newlineCount;
+            }
+        }
         return {
             charCount: content.length,
-            lineCount: content.length === 0 ? 0 : content.split("\n").length,
+            lineCount,
             sizeBytes: stat.size,
         };
     } catch {

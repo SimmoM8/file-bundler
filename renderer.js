@@ -694,7 +694,14 @@ function formatByteSize(bytes) {
         unitIndex += 1;
     }
 
-    const fixed = value >= 100 ? value.toFixed(0) : value >= 10 ? value.toFixed(1) : value.toFixed(2);
+    let fixed;
+    if (value >= 100) {
+        fixed = value.toFixed(0);
+    } else if (value >= 10) {
+        fixed = value.toFixed(1);
+    } else {
+        fixed = value.toFixed(2);
+    }
     const shortValue = fixed.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
     return `${shortValue} ${units[unitIndex]}`;
 }
