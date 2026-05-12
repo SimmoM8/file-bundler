@@ -681,6 +681,47 @@ function fileWord(count) {
     return count === 1 ? "file" : "files";
 }
 
+function formatByteSize(bytes) {
+    const normalized = Number(bytes);
+    if (!Number.isFinite(normalized) || normalized < 0) return null;
+    if (normalized < 1024) return `${normalized.toLocaleString()} B`;
+
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = normalized;
+    let unitIndex = -1;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+
+    let fixed;
+    if (value >= 100) {
+        fixed = value.toFixed(0);
+    } else if (value >= 10) {
+        fixed = value.toFixed(1);
+    } else {
+        fixed = value.toFixed(2);
+    }
+    const shortValue = fixed.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+    return `${shortValue} ${units[unitIndex]}`;
+}
+
+function formatNodePreview(node) {
+    const supportsPreview = node?.kind === "file" || node?.kind === "folder";
+    if (!supportsPreview) return null;
+
+    const chars = Number(node.charCount);
+    const lines = Number(node.lineCount);
+    const size = formatByteSize(node.sizeBytes);
+    if (!Number.isFinite(chars) || chars < 0) return null;
+    if (!Number.isFinite(lines) || lines < 0) return null;
+    if (!size) return null;
+
+    const charsLabel = `${chars.toLocaleString()} chars`;
+    const linesLabel = `${lines.toLocaleString()} lines`;
+    return `${charsLabel}\u2002•\u2002${linesLabel}\u2002•\u2002${size}`;
+}
+
 function renderBundleChangeSignal() {
     if (!bundleChangeSignalEl) return;
 
@@ -1224,6 +1265,19 @@ function renderSelection() {
             changedFlag.className = "selectionTreeFlag isChanged";
             changedFlag.textContent = "Changed";
             nameLine.appendChild(changedFlag);
+        }
+
+        if (node.kind === "file" || node.kind === "folder") {
+            const previewText = formatNodePreview(node);
+            if (previewText) {
+                const preview = document.createElement("span");
+                preview.className = "selectionTreePreview";
+                preview.textContent = previewText;
+                const previewVerbose = `${Number(node.charCount).toLocaleString()} characters • ${Number(node.lineCount).toLocaleString()} lines • ${formatByteSize(node.sizeBytes)}`;
+                preview.title = previewVerbose;
+                preview.setAttribute("aria-label", previewVerbose);
+                nameLine.appendChild(preview);
+            }
         }
 
         if (depth === 0 && !isGroup) {

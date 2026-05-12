@@ -216,11 +216,15 @@ async function getSelectionHierarchy(selectionEntries, options = {}) {
         if (entry.kind === "file") {
             const skipReason = await getFileSkipReason(entry.absPath);
             if (skipReason) continue;
+            const previewMeta = await getFilePreviewMeta(entry.absPath);
             nodes.push({
                 kind: "file",
                 name: path.basename(entry.absPath),
                 absPath: entry.absPath,
                 excluded: excludedPathSet.has(path.resolve(entry.absPath)),
+                charCount: previewMeta?.charCount ?? null,
+                lineCount: previewMeta?.lineCount ?? null,
+                sizeBytes: previewMeta?.sizeBytes ?? null,
                 children: [],
             });
             continue;
@@ -253,6 +257,9 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
             name: path.basename(dirPath),
             absPath: dirPath,
             excluded: directExcluded,
+            charCount: null,
+            lineCount: null,
+            sizeBytes: null,
             children: [],
         };
 
@@ -281,14 +288,40 @@ async function buildFolderHierarchyNode(rootPath, excludedPathSet) {
                 if (isIgnoredByGitignore(abs, false)) continue;
                 const skipReason = await getFileSkipReason(abs);
                 if (skipReason) continue;
+                const previewMeta = await getFilePreviewMeta(abs);
                 node.children.push({
                     kind: "file",
                     name: entry.name,
                     absPath: abs,
                     excluded: excludedPathSet.has(path.resolve(abs)),
+                    charCount: previewMeta?.charCount ?? null,
+                    lineCount: previewMeta?.lineCount ?? null,
+                    sizeBytes: previewMeta?.sizeBytes ?? null,
                     children: [],
                 });
             }
+        }
+
+        let totalChars = 0;
+        let totalLines = 0;
+        let totalSizeBytes = 0;
+        let hasPreviewTotals = false;
+        for (const child of node.children) {
+            const childChars = Number(child.charCount);
+            const childLines = Number(child.lineCount);
+            const childSizeBytes = Number(child.sizeBytes);
+            if (!Number.isFinite(childChars) || childChars < 0) continue;
+            if (!Number.isFinite(childLines) || childLines < 0) continue;
+            if (!Number.isFinite(childSizeBytes) || childSizeBytes < 0) continue;
+            totalChars += childChars;
+            totalLines += childLines;
+            totalSizeBytes += childSizeBytes;
+            hasPreviewTotals = true;
+        }
+        if (hasPreviewTotals) {
+            node.charCount = totalChars;
+            node.lineCount = totalLines;
+            node.sizeBytes = totalSizeBytes;
         }
 
         if (node.children.length === 0 && !node.excluded) return null;
@@ -379,6 +412,35 @@ async function getFileSkipReason(absPath) {
     if (stat.size > MAX_FILE_BYTES) return "too large";
     if (await sniffBinary(absPath)) return "binary";
     return null;
+}
+
+async function getFilePreviewMeta(absPath) {
+    try {
+        const stat = await fs.stat(absPath);
+        if (!stat.isFile() || stat.size > MAX_FILE_BYTES) {
+            return null;
+        }
+        const rawContent = await fs.readFile(absPath, "utf8");
+        const content = rawContent.replace(/\r\n/g, "\n");
+        let newlineCount = 0;
+        for (const ch of content) {
+            if (ch === "\n") newlineCount += 1;
+        }
+        let lineCount = 0;
+        if (content.length > 0) {
+            lineCount = newlineCount + 1;
+            if (content.endsWith("\n")) {
+                lineCount = newlineCount;
+            }
+        }
+        return {
+            charCount: content.length,
+            lineCount,
+            sizeBytes: stat.size,
+        };
+    } catch {
+        return null;
+    }
 }
 
 function isPathExcluded(absPath, excludedPathSet) {
