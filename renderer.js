@@ -716,8 +716,8 @@ function formatFilePreview(node) {
     if (!Number.isFinite(lines) || lines < 0) return null;
     if (!size) return null;
 
-    const charsLabel = `${chars.toLocaleString()}c`;
-    const linesLabel = `${lines.toLocaleString()}l`;
+    const charsLabel = `${chars.toLocaleString()}ch`;
+    const linesLabel = `${lines.toLocaleString()}ln`;
     return `${charsLabel} • ${linesLabel} • ${size}`;
 }
 
