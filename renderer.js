@@ -28,6 +28,7 @@ const bundleStatusMetaEl = document.querySelector(".bundleStatusMeta");
 const sizeInfoOverlay = document.getElementById("sizeInfoOverlay");
 const sizeInfoCloseEl = document.getElementById("sizeInfoClose");
 const sizeInfoCurrentEl = document.getElementById("sizeInfoCurrent");
+const sizeInfoThresholdEl = document.getElementById("sizeInfoThreshold");
 
 const SHOW_DELAY_MS = 900;
 const FADE_MS = 250;
@@ -39,6 +40,7 @@ const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
 const LARGE_KB_PRECISION_THRESHOLD_CHARS = 102_400;
 const OUTPUT_WARNING_TOKEN_THRESHOLD = 200_000;
+const OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL = formatNumber(OUTPUT_WARNING_TOKEN_THRESHOLD);
 
 let selectionEntries = [];
 let lastBundleMeta = null;
@@ -74,6 +76,7 @@ renderStats(null);
 targetEl.textContent = buildTargetLabel();
 renderSelection();
 setView("selection");
+if (sizeInfoThresholdEl) sizeInfoThresholdEl.textContent = OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL;
 void renderAppMeta();
 
 statsEl.addEventListener("click", (event) => {
@@ -326,7 +329,7 @@ function analyzeOutputSize(text) {
     const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
     const approxTokens = Math.round(characters * TOKENS_PER_CHAR_ESTIMATE);
     const warningText = approxTokens > OUTPUT_WARNING_TOKEN_THRESHOLD
-        ? "Output exceeds an estimated 200,000 tokens and may be too large for many LLM prompts."
+        ? `Output exceeds an estimated ${OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL} tokens and may be too large for many LLM prompts.`
         : "";
 
     return {
@@ -363,7 +366,7 @@ function openSizeInfo() {
     if (sizeInfoCurrentEl && lastOutputAnalysis) {
         const detail = lastOutputAnalysis.warningText
             ? `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated).`
-            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below estimated 200,000-token warning threshold).`;
+            : `${lastOutputAnalysis.summary} (~${formatNumber(lastOutputAnalysis.approxTokens)} tokens estimated, below estimated ${OUTPUT_WARNING_TOKEN_THRESHOLD_LABEL}-token warning threshold).`;
         sizeInfoCurrentEl.textContent = `Current output: ${detail}`;
     }
 
