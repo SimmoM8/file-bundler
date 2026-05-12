@@ -716,8 +716,8 @@ function formatFilePreview(node) {
     if (!Number.isFinite(lines) || lines < 0) return null;
     if (!size) return null;
 
-    const charsLabel = `${chars.toLocaleString()} char${chars === 1 ? "" : "s"}`;
-    const linesLabel = `${lines.toLocaleString()} line${lines === 1 ? "" : "s"}`;
+    const charsLabel = `${chars.toLocaleString()}c`;
+    const linesLabel = `${lines.toLocaleString()}l`;
     return `${charsLabel} • ${linesLabel} • ${size}`;
 }
 
@@ -1269,10 +1269,11 @@ function renderSelection() {
         if (node.kind === "file") {
             const previewText = formatFilePreview(node);
             if (previewText) {
-                const meta = document.createElement("div");
-                meta.className = "selectionTreeMeta";
-                meta.textContent = previewText;
-                textWrap.appendChild(meta);
+                const preview = document.createElement("span");
+                preview.className = "selectionTreePreview";
+                preview.textContent = previewText;
+                preview.title = `${Number(node.charCount).toLocaleString()} characters • ${Number(node.lineCount).toLocaleString()} lines • ${formatByteSize(node.sizeBytes)}`;
+                nameLine.appendChild(preview);
             }
         }
 
