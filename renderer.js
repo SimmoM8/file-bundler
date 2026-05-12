@@ -32,6 +32,7 @@ const SKIP_REPLACE_CONFIRM_KEY = "fileBundler.skipReplaceSelectionConfirm";
 const TOKENS_PER_CHAR_ESTIMATE = 0.25;
 const BYTES_PER_KB = 1024;
 const KB_PRECISION_THRESHOLD_CHARS = 10_240;
+const LARGE_KB_PRECISION_THRESHOLD_CHARS = 102_400;
 const COMMON_LLM_CONTEXT_LIMITS = [
     { label: "8k", tokens: 8_000 },
     { label: "32k", tokens: 32_000 },
@@ -298,16 +299,26 @@ function formatNumber(value) {
     return Number(value).toLocaleString();
 }
 
+function getContextTokens(label, fallback) {
+    const match = COMMON_LLM_CONTEXT_LIMITS.find((limit) => limit.label === label);
+    return match?.tokens ?? fallback;
+}
+
+function getKilobytePrecision(characters) {
+    if (characters >= LARGE_KB_PRECISION_THRESHOLD_CHARS) return 0;
+    if (characters >= KB_PRECISION_THRESHOLD_CHARS) return 1;
+    return 2;
+}
+
 function analyzeOutputSize(text) {
     const output = String(text || "");
     const characters = output.length;
     const lines = characters === 0 ? 0 : output.split("\n").length;
-    const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(characters >= KB_PRECISION_THRESHOLD_CHARS ? 1 : 2);
+    const kilobytesDisplay = (characters / BYTES_PER_KB).toFixed(getKilobytePrecision(characters));
     const approxTokens = Math.ceil(characters * TOKENS_PER_CHAR_ESTIMATE);
-    const contextByLabel = Object.fromEntries(COMMON_LLM_CONTEXT_LIMITS.map((limit) => [limit.label, limit.tokens]));
-    const smallContextTokens = contextByLabel["8k"] ?? 8_000;
-    const mediumContextTokens = contextByLabel["32k"] ?? 32_000;
-    const largeContextTokens = contextByLabel["128k"] ?? 128_000;
+    const smallContextTokens = getContextTokens("8k", 8_000);
+    const mediumContextTokens = getContextTokens("32k", 32_000);
+    const largeContextTokens = getContextTokens("128k", 128_000);
 
     let warningText = "";
     if (approxTokens > largeContextTokens) {
