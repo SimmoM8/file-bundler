@@ -1944,7 +1944,10 @@ document.addEventListener("keydown", (event) => {
         closeDetails();
         return;
     }
-    if (event.key === "Escape" && sizeInfoOverlay && !sizeInfoOverlay.classList.contains("hidden")) closeSizeInfo();
+    if (event.key === "Escape" && sizeInfoOverlay && !sizeInfoOverlay.classList.contains("hidden")) {
+        closeSizeInfo();
+        return;
+    }
 });
 
 tabIncludedEl.addEventListener("click", () => setActiveTab("included"));
