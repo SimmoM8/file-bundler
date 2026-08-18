@@ -9,6 +9,13 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 ### Changed
 ### Fixed
 
+## [0.3.3] - 2026-08-18
+### Added
+- Selection tree preview metadata now shows chars, lines, and byte size for file rows and aggregated folder rows.
+
+### Changed
+- README version and feature list were updated to match the current release.
+
 ## [0.3.1] - 2026-05-10
 ### Added
 ### Changed
