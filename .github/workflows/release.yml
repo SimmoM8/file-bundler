@@ -29,7 +29,49 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Build + publish (electron-builder)
-        run: npm run dist
+      - name: Build installers
+        run: npm run dist -- --publish never
+
+      - name: Stage macOS installer
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      - name: Stage Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create draft release if needed
+        run: |
+          gh release view "$GITHUB_REF_NAME" ||
+            gh release create "$GITHUB_REF_NAME" \
+              --draft \
+              --title "${GITHUB_REF_NAME}-alpha" \
+              --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Upload installers
+        run: gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
