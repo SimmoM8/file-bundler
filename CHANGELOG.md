@@ -11,17 +11,24 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 
 ## [0.3.3] - 2026-08-18
 ### Added
-- Selection tree preview metadata now shows chars, lines, and byte size for file rows and aggregated folder rows.
+- External-change monitoring now detects selected files modified after the last bundle, marks affected rows as `Changed`, updates the bundle status, and recommends rebundling.
+- A manual `Rebundle` action refreshes the current selection from disk without requiring it to be selected again.
+- Output diagnostics now show character, line, and kilobyte totals, plus an estimated token count in the size-details dialog.
+- Outputs estimated above 100,000 tokens now display a clickable LLM context-size warning with additional guidance.
+- Selection tree rows now show character, line, and byte-size previews for files and aggregated totals for folders.
+- The README now includes an animated product demo.
 
 ### Changed
-- README version and feature list were updated to match the current release.
+- Bundled output now wraps each file's contents in a fenced code block and separates file sections with `---` dividers.
+- Selection actions were reorganized into grouped `Add content` / `Rebundle` controls and a visually separated destructive `Clear` action.
+- Bundle status and output diagnostics received clearer warning states, responsive layout updates, and accessible labels and dialog focus handling.
+- File preview metadata is cached by modification time and file size so unchanged files are not reread during selection refreshes.
+- README content, feature documentation, usage instructions, and version references were expanded for the current release.
 
-## [0.3.1] - 2026-05-10
-### Added
-### Changed
-- Updated bundled output formatting to wrap each file's content in fenced code blocks and separate file sections with `---`.
 ### Fixed
 - Fixed packaged app builds to include runtime dependencies from `node_modules`, resolving startup failures such as missing `ignore` in production releases.
+- Unavailable preview metadata now remains absent instead of displaying misleading zero values.
+- Empty selection action groups are now hidden when no content is selected.
 
 ## [0.3.0] - 2026-04-15
 ### Added
