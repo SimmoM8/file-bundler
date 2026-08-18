@@ -24,6 +24,7 @@ Current version: **0.3.1**
 - Easily remove or re-add files to the bundle
 - Detect externally changed selected files and flag them for rebundling
 - See which files were included or skipped from the selection
+- View output size in characters, KB, and lines with LLM prompt-size warnings
 - One-click copy to clipboard
 - Clean, readable output designed for AI tools
 
