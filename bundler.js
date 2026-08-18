@@ -420,11 +420,19 @@ async function getFilePreviewMeta(absPath) {
         if (!stat.isFile() || stat.size > MAX_FILE_BYTES) {
             return null;
         }
+
+        getFilePreviewMeta._cache ??= new Map();
+        const cache = getFilePreviewMeta._cache;
+        const cached = cache.get(absPath);
+        if (cached && cached.mtimeMs === stat.mtimeMs && cached.sizeBytes === stat.size) {
+            return cached.meta;
+        }
+
         const rawContent = await fs.readFile(absPath, "utf8");
         const content = rawContent.replace(/\r\n/g, "\n");
         let newlineCount = 0;
-        for (const ch of content) {
-            if (ch === "\n") newlineCount += 1;
+        for (let i = 0; i < content.length; i += 1) {
+            if (content.charCodeAt(i) === 10) newlineCount += 1;
         }
         let lineCount = 0;
         if (content.length > 0) {
@@ -433,11 +441,14 @@ async function getFilePreviewMeta(absPath) {
                 lineCount = newlineCount;
             }
         }
-        return {
+
+        const meta = {
             charCount: content.length,
             lineCount,
             sizeBytes: stat.size,
         };
+        cache.set(absPath, { mtimeMs: stat.mtimeMs, sizeBytes: stat.size, meta });
+        return meta;
     } catch {
         return null;
     }
