@@ -711,12 +711,14 @@ function formatNodePreview(node) {
     const supportsPreview = node?.kind === "file" || node?.kind === "folder";
     if (!supportsPreview) return null;
 
-    const chars = Number(node.charCount);
-    const lines = Number(node.lineCount);
-    const size = formatByteSize(node.sizeBytes);
-    if (!Number.isFinite(chars) || chars < 0) return null;
-    if (!Number.isFinite(lines) || lines < 0) return null;
-    if (!size) return null;
+if (node.charCount == null || node.lineCount == null || node.sizeBytes == null) return null;
+
+const chars = Number(node.charCount);
+const lines = Number(node.lineCount);
+const size = formatByteSize(node.sizeBytes);
+if (!Number.isFinite(chars) || chars < 0) return null;
+if (!Number.isFinite(lines) || lines < 0) return null;
+if (!size) return null;
 
     const charsLabel = `${chars.toLocaleString()} chars`;
     const linesLabel = `${lines.toLocaleString()} lines`;
