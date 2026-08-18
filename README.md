@@ -10,7 +10,7 @@ Built for developers working with AI-assisted workflows:
 - Sharing projects with teammates
 - Debugging and handoffs
 
-Current version: **0.3.1**
+Current version: **0.3.3**
 
 ## Demo
 
@@ -21,6 +21,7 @@ Current version: **0.3.1**
 - Bundle entire folders and files into one structured, copyable output
 - Smart filtering (automatically ignores binaries, large and irrelevant files, .gitignore, etc.)
 - Visually see the files and folders selected for bundling in a nested file tree
+- See per-row preview totals (chars, lines, size) for selected files and folders
 - Easily remove or re-add files to the bundle
 - Detect externally changed selected files and flag them for rebundling
 - See which files were included or skipped from the selection
