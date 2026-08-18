@@ -682,6 +682,7 @@ function fileWord(count) {
 }
 
 function formatByteSize(bytes) {
+    if (bytes == null) return null;
     const normalized = Number(bytes);
     if (!Number.isFinite(normalized) || normalized < 0) return null;
     if (normalized < 1024) return `${normalized.toLocaleString()} B`;
