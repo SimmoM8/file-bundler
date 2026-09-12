@@ -57,7 +57,6 @@ path/to/other_file.ext:
 ```
 <file contents>
 ```
-```
 
 ## Download
 
